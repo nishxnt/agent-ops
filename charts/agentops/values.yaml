@@ -1,0 +1,21 @@
+global:
+  image:
+    tag: "latest"
+  mode: "cloud" # mock | local | cloud
+  budget:
+    defaultTokenLimit: 50000
+apiGateway:
+  replicaCount: 1
+  service:
+    type: NodePort
+    nodePort: 30080
+orchestrator:
+  replicaCount: 1
+  agent:
+    maxResearchers: 3
+    researcherTimeoutSecs: 30
+    maxRevisions: 2
+phoenix:
+  enabled: true
+  persistence:
+    size: 1Gi

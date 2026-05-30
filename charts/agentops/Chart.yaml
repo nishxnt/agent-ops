@@ -1,0 +1,5 @@
+apiVersion: v2
+name: agentops
+description: Multi-agent research pipeline with production infrastructure
+version: 0.1.0
+appVersion: "0.1.0"
