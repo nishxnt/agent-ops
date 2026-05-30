@@ -1,0 +1,59 @@
+[project]
+name = "agentops"
+version = "0.1.0"
+description = "Production-oriented multi-agent research workflow infrastructure."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "Nishant Gupta" }]
+dependencies = [
+    "arize-phoenix>=8.0",
+    "diskcache>=5.6",
+    "faiss-cpu>=1.8",
+    "groq>=0.9",
+    "httpx>=0.27",
+    "langgraph>=0.3",
+    "ollama>=0.3",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.2",
+    "structlog>=24.4",
+]
+
+[dependency-groups]
+dev = [
+    "black>=24.4",
+    "mypy>=1.10",
+    "pre-commit>=3.7",
+    "pytest>=8.2",
+    "ruff>=0.5",
+]
+
+[project.scripts]
+agentops-mock = "agentops.dev.run_mock_pipeline:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agentops"]
+
+[tool.black]
+line-length = 88
+target-version = ["py312"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["agentops"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
