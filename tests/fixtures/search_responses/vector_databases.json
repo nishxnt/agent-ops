@@ -1,0 +1,11 @@
+{
+  "query": "vector databases",
+  "results": [
+    {
+      "title": "Vector database overview",
+      "url": "https://example.com/vector-db",
+      "content": "Vector databases index embeddings for nearest-neighbor retrieval.",
+      "score": 0.9
+    }
+  ]
+}

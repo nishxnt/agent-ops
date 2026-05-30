@@ -1,0 +1,17 @@
+{
+  "query": "default",
+  "results": [
+    {
+      "title": "FAISS documentation",
+      "url": "https://faiss.ai/",
+      "content": "FAISS is a library for efficient similarity search and clustering of dense vectors.",
+      "score": 0.98
+    },
+    {
+      "title": "FAISS GitHub",
+      "url": "https://github.com/facebookresearch/faiss",
+      "content": "FAISS contains algorithms that search in sets of vectors of any size.",
+      "score": 0.93
+    }
+  ]
+}

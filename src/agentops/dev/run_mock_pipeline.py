@@ -1,26 +1,13 @@
-"""PROVISIONAL Milestone-1 stub returning hardcoded data.
+"""Mock-mode infrastructure smoke entry point."""
 
-This module will be rebuilt in Milestone 3/4 to route through MockLLMClient and
-CachedSearchClient. Do not expand this logic before that milestone.
-"""
+import asyncio
 
 import structlog
 
 from agentops.config import AgentOpsMode, get_settings
+from agentops.dev.mocks import mock_pipeline_run
 
 logger = structlog.get_logger(__name__)
-
-
-def run_mock_pipeline() -> dict[str, str]:
-    """Return a deterministic pipeline result without external calls."""
-
-    settings = get_settings()
-    return {
-        "status": "completed",
-        "mode": settings.mode.value,
-        "query": "What is FAISS?",
-        "summary": "Mock pipeline executed with deterministic local data.",
-    }
 
 
 def main() -> None:
@@ -28,9 +15,9 @@ def main() -> None:
 
     settings = get_settings()
     if settings.mode is not AgentOpsMode.MOCK:
-        raise SystemExit("Only AGENTOPS_MODE=mock is implemented in Milestone 1.")
+        raise SystemExit("Only AGENTOPS_MODE=mock is supported by this entry point.")
 
-    result = run_mock_pipeline()
+    result = asyncio.run(mock_pipeline_run("What is FAISS?"))
     logger.info("mock_pipeline_completed", **result)
 
 
