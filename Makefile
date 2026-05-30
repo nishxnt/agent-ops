@@ -1,4 +1,11 @@
-.PHONY: test lint run-mock run-local deploy teardown
+.PHONY: install format test lint run-mock run-local deploy teardown
+
+install:
+	uv sync
+
+format:
+	uv run black .
+	uv run ruff check --fix .
 
 test:
 	uv run pytest

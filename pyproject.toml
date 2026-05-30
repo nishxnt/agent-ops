@@ -59,3 +59,4 @@ packages = ["agentops"]
 testpaths = ["tests"]
 addopts = "-q"
 pythonpath = ["."]
+asyncio_mode = "auto"
