@@ -120,3 +120,17 @@ async def test_writer_raises_validation_error_on_malformed_section() -> None:
 
     with pytest.raises(ValidationError):
         await agent.write(critic_report(), "Assess FAISS for RAG.")
+
+
+@pytest.mark.asyncio
+async def test_writer_propagates_data_gaps_from_critic() -> None:
+    report_from_critic = critic_report()
+    report_from_critic.low_confidence_items = ["task-c", "task-d"]
+    client = FixtureSequenceLLMClient(
+        ["default.json", "default.json", "executive_summary.json"]
+    )
+    agent = WriterAgent(llm_client=client)
+
+    report = await agent.write(report_from_critic, "Assess FAISS for RAG.")
+
+    assert report.data_gaps_acknowledged == ["task-c", "task-d"]

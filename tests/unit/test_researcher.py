@@ -5,7 +5,7 @@ import pytest
 from pydantic import ValidationError
 
 from agentops.agents.planner import ResearchSubtask
-from agentops.agents.researcher import ResearcherAgent
+from agentops.agents.researcher import ResearcherAgent, ResearchFinding
 from agentops.dev.search_cache import SearchResult
 from agentops.llm.client import MockLLMClient
 
@@ -121,3 +121,16 @@ async def test_researcher_raises_validation_error_on_malformed_output(
 
     with pytest.raises(ValidationError):
         await agent.research(subtask())
+
+
+@pytest.mark.asyncio
+async def test_researcher_returns_low_confidence_finding(tmp_path: Path) -> None:
+    agent = ResearcherAgent(
+        llm_client=researcher_client(tmp_path, "low_confidence.json"),
+        search_client=SpySearchClient(),  # type: ignore[arg-type]
+    )
+
+    finding = await agent.research(subtask())
+
+    assert isinstance(finding, ResearchFinding)
+    assert finding.confidence_score < 0.4
