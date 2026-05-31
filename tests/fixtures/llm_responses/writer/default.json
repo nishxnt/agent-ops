@@ -1,0 +1,4 @@
+{
+  "content": "{\"section_id\":\"task-a\",\"heading\":\"Vector Search Capabilities\",\"content\":\"The verified evidence shows that FAISS supports dense-vector search and indexing workflows used in retrieval systems.\",\"supporting_fact_ids\":[\"fact-1\",\"fact-2\"],\"confidence\":0.82}",
+  "error": false
+}
