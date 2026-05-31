@@ -50,7 +50,7 @@ class CachedSearchClient:
             payload = _load_mock_search_payload(query)
             return _parse_tavily_results(payload)
 
-        from tavily import TavilyClient  # type: ignore[import-not-found]
+        from tavily import TavilyClient  # type: ignore[import-untyped]
 
         client = TavilyClient(api_key=self.settings.tavily_api_key)
         payload = client.search(query=query)
