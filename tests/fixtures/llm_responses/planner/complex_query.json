@@ -1,0 +1,4 @@
+{
+  "content": "{\"query\":\"Compare vector database options for a regulated enterprise RAG platform.\",\"subtasks\":[{\"task_id\":\"task-1\",\"description\":\"Compare storage and indexing capabilities across leading vector databases.\",\"search_keywords\":[\"vector database comparison\",\"FAISS\",\"Milvus\",\"Pinecone\"],\"expected_output_type\":\"comparative\"},{\"task_id\":\"task-2\",\"description\":\"Assess security and compliance features relevant to regulated enterprise deployments.\",\"search_keywords\":[\"vector database security\",\"compliance\",\"enterprise RAG\"],\"expected_output_type\":\"analytical\"},{\"task_id\":\"task-3\",\"description\":\"Identify operational tradeoffs around hosting, scaling, and cost.\",\"search_keywords\":[\"vector database operations\",\"scaling\",\"cost\"],\"expected_output_type\":\"comparative\"}],\"estimated_complexity\":\"high\",\"recommended_researcher_count\":3}",
+  "error": false
+}

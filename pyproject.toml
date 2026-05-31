@@ -17,6 +17,7 @@ dependencies = [
     "pydantic>=2.7",
     "pydantic-settings>=2.2",
     "structlog>=24.4",
+    "tavily-python>=0.7.25",
 ]
 
 [dependency-groups]

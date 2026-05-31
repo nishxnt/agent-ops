@@ -1,0 +1,4 @@
+{
+  "content": "{\"query\":\"What is FAISS?\",\"subtasks\":[{\"task_id\":\"task-1\",\"description\":\"Find core facts about FAISS and its primary use cases.\",\"search_keywords\":[\"FAISS\",\"similarity search\",\"vector database\"],\"expected_output_type\":\"factual\"}],\"estimated_complexity\":\"low\",\"recommended_researcher_count\":1}",
+  "error": false
+}

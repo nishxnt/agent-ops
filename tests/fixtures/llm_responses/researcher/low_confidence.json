@@ -1,0 +1,4 @@
+{
+  "content": "{\"task_id\":\"task-1\",\"summary\":\"The available evidence gives only a partial view of the topic, so the finding should be treated as tentative.\",\"key_facts\":[\"Search evidence is sparse.\",\"The available sources do not cover every deployment context.\",\"Additional primary sources would improve certainty.\"],\"sources\":[{\"url\":\"https://example.com/vector-search-note\",\"title\":\"Vector search deployment note\",\"relevance_score\":0.42}],\"confidence_score\":0.35,\"data_gaps\":[\"Need vendor documentation.\",\"Need current benchmark data.\"]}",
+  "error": false
+}

@@ -20,3 +20,4 @@
 - Mock fixtures live in `tests/fixtures`; containerized mock mode will need
   those fixtures moved into package data or mounted explicitly.
 - `mock_pipeline_run` assumes at least one search result.
+FAISS local KB deferred — Researcher uses CachedSearchClient only in this milestone.

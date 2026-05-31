@@ -1,0 +1,17 @@
+{
+  "query": "vector database security compliance enterprise RAG",
+  "results": [
+    {
+      "title": "Enterprise vector search security guide",
+      "url": "https://example.com/vector-search-security",
+      "content": "Enterprise vector search deployments commonly evaluate access control, encryption, audit logging, and data residency.",
+      "score": 0.87
+    },
+    {
+      "title": "RAG operations checklist",
+      "url": "https://example.com/rag-operations",
+      "content": "Production RAG systems require repeatable indexing, observability, cost controls, and retrieval quality monitoring.",
+      "score": 0.79
+    }
+  ]
+}

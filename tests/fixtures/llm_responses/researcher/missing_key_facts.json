@@ -1,0 +1,4 @@
+{
+  "content": "{\"task_id\":\"task-1\",\"summary\":\"This response is missing required key facts.\",\"sources\":[{\"url\":\"https://faiss.ai/\",\"title\":\"FAISS documentation\",\"relevance_score\":0.98}],\"confidence_score\":0.7,\"data_gaps\":[]}",
+  "error": false
+}
