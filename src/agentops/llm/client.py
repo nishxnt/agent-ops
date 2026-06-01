@@ -2,13 +2,17 @@
 
 import hashlib
 import json
+import time
 from abc import ABC, abstractmethod
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
 from groq import AsyncGroq
 from ollama import AsyncClient as AsyncOllamaClient
 
+from agentops.audit.context import current_audit_logger, current_run_id
+from agentops.audit.schema import AuditEntry
 from agentops.budget.context import current_budget_guard
 from agentops.config import AgentOpsMode, LLMRole, Settings, get_settings
 from agentops.llm.models import LLMError, LLMRequest, LLMResponse
@@ -23,7 +27,28 @@ class LLMClient(ABC):
     async def complete(self, request: LLMRequest) -> LLMResponse:
         """Complete a chat request."""
 
+        start = time.perf_counter()
         response = await self._do_complete(request)
+        latency_ms = int((time.perf_counter() - start) * 1000)
+
+        audit_logger = current_audit_logger.get()
+        run_id = current_run_id.get()
+        if audit_logger is not None and run_id is not None:
+            entry = AuditEntry(
+                run_id=run_id,
+                agent_type=request.agent_type,
+                timestamp_utc=datetime.now(UTC).isoformat(),
+                input_hash=_canonical_sha256(request.model_dump()),
+                output_hash=_canonical_sha256(response.model_dump()),
+                model_id=response.model,
+                model_version=response.model,
+                latency_ms=latency_ms,
+                prompt_tokens=response.prompt_tokens,
+                completion_tokens=response.completion_tokens,
+                status="SUCCESS",
+            )
+            audit_logger.append(entry)
+
         guard = current_budget_guard.get()
         if guard is not None:
             guard.check_and_charge(
@@ -174,6 +199,14 @@ def _client_for_settings(role: LLMRole, settings: Settings) -> LLMClient:
 
 def _fixture_root() -> Path:
     return Path(__file__).resolve().parents[3] / "tests" / "fixtures"
+
+
+def _canonical_sha256(payload: dict[str, Any]) -> str:
+    """SHA-256 over sort_keys JSON of a Pydantic-style dict."""
+
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, default=str).encode("utf-8")
+    ).hexdigest()
 
 
 def _estimate_tokens(text: str) -> int:
