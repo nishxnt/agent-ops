@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from agentops.config import AgentOpsMode, LLMRole, Settings
 
 
@@ -6,7 +8,7 @@ def test_settings_load_defaults() -> None:
 
     assert settings.mode is AgentOpsMode.MOCK
     assert settings.default_token_budget == 50_000
-    assert settings.audit_db_path == ".data/audit.db"
+    assert settings.audit_db_path == Path("./audit.sqlite")
 
 
 def test_model_for_cloud_mode_uses_cloud_models() -> None:

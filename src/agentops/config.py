@@ -1,6 +1,7 @@
 """Configuration primitives for AgentOps execution modes."""
 
 from enum import StrEnum
+from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -61,7 +62,10 @@ class Settings(BaseSettings):
     search_cache_ttl_seconds: int = Field(
         default=2_592_000, alias="AGENTOPS_SEARCH_CACHE_TTL_SECONDS"
     )
-    audit_db_path: str = Field(default=".data/audit.db", alias="AUDIT_DB_PATH")
+    audit_db_path: Path = Field(
+        default=Path("./audit.sqlite"),
+        validation_alias="AUDIT_DB_PATH",
+    )
 
     def model_for(self, role: LLMRole) -> str:
         """Return the configured model for a role in the active execution mode."""
