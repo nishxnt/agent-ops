@@ -17,7 +17,7 @@ from src.evaluation.metrics.hallucination import (  # type: ignore[import-untype
 
 from agentops.agents.critic import VerifiedFact
 from agentops.agents.writer import ResearchReport
-from agentops.config import LLMRole, Settings, get_settings
+from agentops.config import AgentOpsMode, LLMRole, Settings, get_settings
 
 
 class FlaggedClaim(BaseModel):
@@ -41,6 +41,25 @@ class QualityDecision(BaseModel):
     revision_instruction: str | None = None
 
 
+class _FixedScoreMetric:
+    """Mock-mode metric stub. Constant score per call."""
+
+    def __init__(self, name: str, score: float) -> None:
+        self.name = name
+        self.judge_model = "mock-stub"
+        self.judge_version = "v1"
+        self._score = score
+
+    async def score(self, attack: AttackEvaluationInput) -> MetricResult:
+        return MetricResult(
+            attack_id=attack.attack_id,
+            metric_name=self.name,
+            score=self._score,
+            judge_model=self.judge_model,
+            judge_version=self.judge_version,
+        )
+
+
 class QualityGateAgent:
     """Evaluate report quality with RogueLLM faithfulness and hallucination metrics."""
 
@@ -55,10 +74,14 @@ class QualityGateAgent:
     ) -> None:
         self.settings = settings or get_settings()
         eval_model = self.settings.model_for(LLMRole.EVALUATION)
-        self.faithfulness = faithfulness or FaithfulnessMetric(judge_model=eval_model)
-        self.hallucination = hallucination or HallucinationMetric(
-            judge_model=eval_model
-        )
+        if self.settings.mode == AgentOpsMode.MOCK:
+            faithfulness = faithfulness or _FixedScoreMetric("faithfulness", 0.9)
+            hallucination = hallucination or _FixedScoreMetric("hallucination", 0.05)
+        else:
+            faithfulness = faithfulness or FaithfulnessMetric(judge_model=eval_model)
+            hallucination = hallucination or HallucinationMetric(judge_model=eval_model)
+        self.faithfulness = faithfulness
+        self.hallucination = hallucination
         self.max_revisions = self.settings.quality_gate_max_revisions
 
     async def evaluate(

@@ -1,4 +1,4 @@
-.PHONY: install format test lint run-mock run-local deploy teardown
+.PHONY: install format test lint smoke-infra run-mock run-local deploy teardown
 
 install:
 	uv sync
@@ -15,11 +15,14 @@ lint:
 	uv run black --check .
 	uv run mypy
 
-run-mock:
+smoke-infra:
 	AGENTOPS_MODE=mock uv run python -m agentops.dev.run_mock_pipeline
 
+run-mock:
+	AGENTOPS_MODE=mock uv run agentops-run "What is FAISS?"
+
 run-local:
-	AGENTOPS_MODE=local uv run python -m agentops.dev.run_mock_pipeline
+	AGENTOPS_MODE=local uv run agentops-run "What is FAISS?"
 
 deploy:
 	@echo "Kubernetes deployment is introduced after Phase 0."

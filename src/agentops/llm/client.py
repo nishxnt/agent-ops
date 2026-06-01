@@ -67,9 +67,20 @@ class MockLLMClient(LLMClient):
     def _load_fixture(self, request: LLMRequest) -> dict[str, Any]:
         payload = json.dumps(request.messages, sort_keys=True)
         digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()
-        fixture_path = self.fixture_dir / f"{digest}.json"
+        fixture_dir = self.fixture_dir
+        agent_fixture_dir = fixture_dir / request.agent_type
+        if agent_fixture_dir.is_dir():
+            fixture_dir = agent_fixture_dir
+
+        fixture_path = fixture_dir / f"{digest}.json"
         if not fixture_path.exists():
-            fixture_path = self.fixture_dir / "default.json"
+            fixture_path = fixture_dir / "default.json"
+        if (
+            request.agent_type == "writer"
+            and "executive_summary" in payload
+            and (fixture_dir / "executive_summary.json").exists()
+        ):
+            fixture_path = fixture_dir / "executive_summary.json"
         return cast(
             dict[str, Any],
             json.loads(fixture_path.read_text(encoding="utf-8")),
