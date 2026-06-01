@@ -58,7 +58,7 @@ class FixtureSequenceLLMClient(LLMClient):
         self.fixture_names = fixture_names
         self.invocation_count = 0
 
-    async def complete(self, request: LLMRequest) -> LLMResponse:
+    async def _do_complete(self, request: LLMRequest) -> LLMResponse:
         fixture_name = self.fixture_names[self.invocation_count]
         self.invocation_count += 1
         fixture = json.loads(

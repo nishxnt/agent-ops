@@ -169,6 +169,7 @@ class CriticAgent:
                 },
             ],
             model=self.llm_client.model,
+            agent_type="critic",
         )
         response = await self.llm_client.complete(request)
         return _Adjudication.model_validate(json.loads(response.content))

@@ -10,6 +10,7 @@ from agentops.agents.planner import PlannerAgent
 from agentops.agents.quality_gate import QualityGateAgent
 from agentops.agents.researcher import ResearcherAgent
 from agentops.agents.writer import WriterAgent
+from agentops.budget.context import current_budget_guard
 from agentops.dev.search_cache import SearchResult
 from agentops.llm.client import LLMClient, MockLLMClient
 from agentops.llm.models import LLMRequest, LLMResponse
@@ -60,7 +61,7 @@ class FixtureSequenceLLMClient(LLMClient):
         self.fixture_names = fixture_names
         self.invocation_count = 0
 
-    async def complete(self, request: LLMRequest) -> LLMResponse:
+    async def _do_complete(self, request: LLMRequest) -> LLMResponse:
         fixture_name = self.fixture_names[self.invocation_count]
         self.invocation_count += 1
         fixture = json.loads(
@@ -79,7 +80,7 @@ class SingleFixtureLLMClient(LLMClient):
         super().__init__(model="qwen2.5:7b")
         self.fixture_path = fixture_path
 
-    async def complete(self, request: LLMRequest) -> LLMResponse:
+    async def _do_complete(self, request: LLMRequest) -> LLMResponse:
         fixture = json.loads(self.fixture_path.read_text(encoding="utf-8"))
         return LLMResponse(
             content=str(fixture["content"]),
@@ -378,3 +379,30 @@ async def test_all_researchers_fail_marks_failed_status() -> None:
     assert isinstance(state["error"], PipelineError)
     assert state["error"].stage == "research"
     assert len(state["failed_tasks"]) == 3
+
+
+@pytest.mark.asyncio
+async def test_pipeline_halts_on_budget_exceeded(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("BUDGET_TOKEN_LIMIT", "30")
+    orchestrator = _orchestrator(faithfulness=FakeMetric("faithfulness", 0.9))
+
+    state = await orchestrator.run("What is FAISS?")
+
+    assert state["pipeline_status"] == PipelineStatus.BUDGET_HALTED
+    assert isinstance(state["error"], PipelineError)
+    assert state["budget_tracker"].spent > 0
+    assert state["budget_tracker"].spent <= 30
+    assert current_budget_guard.get() is None
+
+
+@pytest.mark.asyncio
+async def test_per_agent_spend_attributed_after_happy_path() -> None:
+    orchestrator = _orchestrator(faithfulness=FakeMetric("faithfulness", 0.9))
+
+    state = await orchestrator.run("What is FAISS?")
+
+    per_agent_spend = state["budget_tracker"].per_agent_spend
+    assert per_agent_spend["planner"] > 0
+    assert per_agent_spend["researcher"] > 0

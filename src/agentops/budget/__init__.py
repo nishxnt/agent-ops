@@ -1,1 +1,1 @@
-"""Budget package placeholder for later phases."""
+"""Budget enforcement primitives."""

@@ -7,6 +7,7 @@ from agentops.agents.planner import PlannerAgent, ResearchSubtask
 from agentops.agents.quality_gate import QualityGateAgent
 from agentops.agents.researcher import ResearcherAgent, ResearchFinding
 from agentops.agents.writer import WriterAgent
+from agentops.budget.guard import BudgetExceededError
 from agentops.config import get_settings
 from agentops.orchestration.state import PipelineError, PipelineState, PipelineStatus
 
@@ -47,6 +48,8 @@ async def research_node(
     findings: list[ResearchFinding] = []
     failed_tasks: list[str] = []
     for subtask, result in zip(plan.subtasks, results, strict=True):
+        if isinstance(result, BudgetExceededError):
+            raise result
         if isinstance(result, BaseException):
             failed_tasks.append(subtask.task_id)
         else:

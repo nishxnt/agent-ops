@@ -11,6 +11,8 @@ from agentops.agents.planner import ResearchPlan
 from agentops.agents.quality_gate import QualityDecision
 from agentops.agents.researcher import ResearchFinding
 from agentops.agents.writer import ResearchReport
+from agentops.budget.guard import BudgetGuard
+from agentops.config import Settings, get_settings
 
 
 class PipelineStatus(StrEnum):
@@ -26,14 +28,6 @@ class PipelineStatus(StrEnum):
     FAILED = "FAILED"
     BUDGET_HALTED = "BUDGET_HALTED"
     RECOVERY = "RECOVERY"
-
-
-class BudgetTracker(BaseModel):
-    """Stub for Phase 2 M1. Full enforcement lands in M2."""
-
-    spent_prompt_tokens: int = 0
-    spent_completion_tokens: int = 0
-    budget_tokens: int = 50_000
 
 
 class AuditEntry(BaseModel):
@@ -66,15 +60,21 @@ class PipelineState(TypedDict):
     quality_decision: QualityDecision | None
     revision_count: int
     recovery_attempts: dict[str, int]
-    budget_tracker: BudgetTracker
+    budget_tracker: BudgetGuard
     audit_entries: list[AuditEntry]
     pipeline_status: PipelineStatus
     error: PipelineError | None
 
 
-def initial_state(query: str, run_id: str | None = None) -> PipelineState:
+def initial_state(
+    query: str,
+    run_id: str | None = None,
+    *,
+    settings: Settings | None = None,
+) -> PipelineState:
     """Build the initial pipeline state for a query."""
 
+    s = settings or get_settings()
     return {
         "run_id": run_id or uuid4().hex,
         "query": query,
@@ -86,7 +86,7 @@ def initial_state(query: str, run_id: str | None = None) -> PipelineState:
         "quality_decision": None,
         "revision_count": 0,
         "recovery_attempts": {},
-        "budget_tracker": BudgetTracker(),
+        "budget_tracker": BudgetGuard(budget_tokens=s.budget_token_limit),
         "audit_entries": [],
         "pipeline_status": PipelineStatus.PLANNING,
         "error": None,

@@ -77,6 +77,7 @@ class ResearcherAgent:
                 },
             ],
             model=self.llm_client.model,
+            agent_type="researcher",
         )
         response = await self.llm_client.complete(request)
         return ResearchFinding.model_validate(json.loads(response.content))

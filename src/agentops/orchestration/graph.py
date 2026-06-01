@@ -11,6 +11,8 @@ from agentops.agents.planner import PlannerAgent
 from agentops.agents.quality_gate import QualityGateAgent
 from agentops.agents.researcher import ResearcherAgent
 from agentops.agents.writer import WriterAgent
+from agentops.budget.context import current_budget_guard
+from agentops.budget.guard import BudgetExceededError
 from agentops.config import Settings, get_settings
 from agentops.orchestration.nodes import (
     critique_node,
@@ -20,7 +22,12 @@ from agentops.orchestration.nodes import (
     write_node,
 )
 from agentops.orchestration.routing import route_after_research, route_quality_decision
-from agentops.orchestration.state import PipelineState, initial_state
+from agentops.orchestration.state import (
+    PipelineError,
+    PipelineState,
+    PipelineStatus,
+    initial_state,
+)
 
 
 class PipelineOrchestrator:
@@ -86,5 +93,21 @@ class PipelineOrchestrator:
     async def run(self, query: str, *, run_id: str | None = None) -> PipelineState:
         """Run the compiled graph for a query."""
 
-        result = await self.graph.ainvoke(initial_state(query, run_id=run_id))
-        return cast(PipelineState, result)
+        state = initial_state(query, run_id=run_id, settings=self.settings)
+        guard = state["budget_tracker"]
+        token = current_budget_guard.set(guard)
+        try:
+            result = await self.graph.ainvoke(state)
+            return cast(PipelineState, result)
+        except BudgetExceededError as exc:
+            return cast(
+                PipelineState,
+                {
+                    **state,
+                    "budget_tracker": guard,
+                    "pipeline_status": PipelineStatus.BUDGET_HALTED,
+                    "error": PipelineError(str(exc), stage=exc.agent_type),
+                },
+            )
+        finally:
+            current_budget_guard.reset(token)

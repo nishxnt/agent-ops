@@ -3,7 +3,6 @@
 from agentops.orchestration.graph import PipelineOrchestrator
 from agentops.orchestration.state import (
     AuditEntry,
-    BudgetTracker,
     PipelineError,
     PipelineState,
     PipelineStatus,
@@ -12,7 +11,6 @@ from agentops.orchestration.state import (
 
 __all__ = [
     "AuditEntry",
-    "BudgetTracker",
     "PipelineError",
     "PipelineOrchestrator",
     "PipelineState",
