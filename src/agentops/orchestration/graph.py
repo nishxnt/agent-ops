@@ -18,10 +18,16 @@ from agentops.orchestration.nodes import (
     critique_node,
     planning_node,
     quality_check_node,
+    recovery_node,
     research_node,
     write_node,
 )
-from agentops.orchestration.routing import route_after_research, route_quality_decision
+from agentops.orchestration.routing import (
+    route_after_critique,
+    route_after_recovery,
+    route_after_research,
+    route_quality_decision,
+)
 from agentops.orchestration.state import (
     PipelineError,
     PipelineState,
@@ -61,6 +67,7 @@ class PipelineOrchestrator:
         graph.add_node("plan", partial(planning_node, planner=self.planner))
         graph.add_node("research", partial(research_node, researcher=self.researcher))
         graph.add_node("critique", partial(critique_node, critic=self.critic))
+        graph.add_node("recovery", recovery_node)
         graph.add_node("write", partial(write_node, writer=self.writer))
         graph.add_node(
             "quality_check",
@@ -74,10 +81,25 @@ class PipelineOrchestrator:
             route_after_research,
             {
                 "proceed": "critique",
-                "halt": END,
+                "recover": "recovery",
             },
         )
-        graph.add_edge("critique", "write")
+        graph.add_conditional_edges(
+            "critique",
+            route_after_critique,
+            {
+                "proceed": "write",
+                "recover": "recovery",
+            },
+        )
+        graph.add_conditional_edges(
+            "recovery",
+            route_after_recovery,
+            {
+                "retry": "research",
+                "fail": END,
+            },
+        )
         graph.add_edge("write", "quality_check")
         graph.add_conditional_edges(
             "quality_check",

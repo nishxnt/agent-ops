@@ -7,6 +7,7 @@ def test_settings_load_defaults() -> None:
     assert settings.mode is AgentOpsMode.MOCK
     assert settings.default_token_budget == 50_000
     assert settings.budget_token_limit == 50_000
+    assert settings.max_recovery_attempts == 2
     assert settings.audit_db_path == ".data/audit.db"
 
 

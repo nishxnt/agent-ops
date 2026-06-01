@@ -60,11 +60,7 @@ async def research_node(
             **state,
             "findings": [],
             "failed_tasks": failed_tasks,
-            "pipeline_status": PipelineStatus.FAILED,
-            "error": PipelineError(
-                f"All {len(plan.subtasks)} researchers failed.",
-                stage="research",
-            ),
+            "pipeline_status": PipelineStatus.RECOVERY,
         }
 
     return {
@@ -83,10 +79,45 @@ async def critique_node(
     """Critique gathered findings and move to report writing."""
 
     critic_report = await critic.review(state["findings"])
+    next_status = (
+        PipelineStatus.WRITING
+        if critic_report.proceed_recommendation
+        else PipelineStatus.RECOVERY
+    )
     return {
         **state,
         "critic_report": critic_report,
-        "pipeline_status": PipelineStatus.WRITING,
+        "pipeline_status": next_status,
+    }
+
+
+async def recovery_node(state: PipelineState) -> PipelineState:
+    """Decide whether to retry research or fail the pipeline."""
+
+    attempts = state["recovery_attempts"].get("research", 0)
+    settings = get_settings()
+
+    if attempts >= settings.max_recovery_attempts:
+        return {
+            **state,
+            "pipeline_status": PipelineStatus.FAILED,
+            "error": PipelineError(
+                f"Recovery exhausted after {attempts} attempts.",
+                stage="recovery",
+            ),
+        }
+
+    new_attempts = {
+        **state["recovery_attempts"],
+        "research": attempts + 1,
+    }
+    return {
+        **state,
+        "findings": [],
+        "failed_tasks": [],
+        "critic_report": None,
+        "recovery_attempts": new_attempts,
+        "pipeline_status": PipelineStatus.RECOVERY,
     }
 
 

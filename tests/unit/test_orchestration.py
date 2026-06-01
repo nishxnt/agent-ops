@@ -15,7 +15,7 @@ from agentops.dev.search_cache import SearchResult
 from agentops.llm.client import LLMClient, MockLLMClient
 from agentops.llm.models import LLMRequest, LLMResponse
 from agentops.orchestration.graph import PipelineOrchestrator
-from agentops.orchestration.nodes import write_node
+from agentops.orchestration.nodes import recovery_node, write_node
 from agentops.orchestration.state import PipelineError, PipelineStatus, initial_state
 
 FIXTURE_DIR = Path(__file__).resolve().parents[1] / "fixtures" / "llm_responses"
@@ -171,6 +171,34 @@ class FlakyResearcher:
         return await self.inner.research(subtask)  # type: ignore[arg-type]
 
 
+class AlwaysFailResearcher:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def research(self, subtask: object) -> object:
+        self.calls += 1
+        raise ValueError(f"always fails: {subtask.task_id}")  # type: ignore[attr-defined]
+
+
+class FlipFlopCritic:
+    def __init__(self, inner: CriticAgent, fail_reviews: int) -> None:
+        self.inner = inner
+        self.fail_reviews = fail_reviews
+        self.review_count = 0
+
+    async def review(self, findings: object) -> object:
+        self.review_count += 1
+        report = await self.inner.review(findings)  # type: ignore[arg-type]
+        if self.review_count <= self.fail_reviews:
+            return report.model_copy(
+                update={
+                    "proceed_recommendation": False,
+                    "overall_evidence_quality": 0.1,
+                }
+            )
+        return report
+
+
 def _planner() -> PlannerAgent:
     return PlannerAgent(
         llm_client=MockLLMClient(
@@ -222,14 +250,19 @@ def _orchestrator(
     hallucination: FakeMetric | StepwiseMetric | None = None,
     planner: PlannerAgent | None = None,
     researcher: (
-        ResearcherAgent | ConcurrencyProbeResearcher | FlakyResearcher | None
+        ResearcherAgent
+        | ConcurrencyProbeResearcher
+        | FlakyResearcher
+        | AlwaysFailResearcher
+        | None
     ) = None,
+    critic: CriticAgent | FlipFlopCritic | None = None,
     writer: WriterAgent | CountingWriter | None = None,
 ) -> PipelineOrchestrator:
     return PipelineOrchestrator(
         planner=planner or _planner(),
         researcher=researcher or _researcher(),  # type: ignore[arg-type]
-        critic=_critic(),
+        critic=critic or _critic(),  # type: ignore[arg-type]
         writer=writer or _writer(),
         quality_gate=QualityGateAgent(
             faithfulness=faithfulness,
@@ -365,10 +398,10 @@ async def test_partial_researcher_failure_tolerated() -> None:
 
 @pytest.mark.asyncio
 async def test_all_researchers_fail_marks_failed_status() -> None:
-    flaky = FlakyResearcher(_researcher(), fail_indexes={0, 1, 2})
+    researcher = AlwaysFailResearcher()
     orchestrator = _orchestrator(
         planner=_planner_three_subtasks(),
-        researcher=flaky,
+        researcher=researcher,
         faithfulness=FakeMetric("faithfulness", 0.9),
     )
 
@@ -377,8 +410,9 @@ async def test_all_researchers_fail_marks_failed_status() -> None:
     assert state["pipeline_status"] == PipelineStatus.FAILED
     assert state["critic_report"] is None
     assert isinstance(state["error"], PipelineError)
-    assert state["error"].stage == "research"
-    assert len(state["failed_tasks"]) == 3
+    assert state["error"].stage == "recovery"
+    assert state["recovery_attempts"]["research"] == 2
+    assert researcher.calls == 9
 
 
 @pytest.mark.asyncio
@@ -406,3 +440,51 @@ async def test_per_agent_spend_attributed_after_happy_path() -> None:
     per_agent_spend = state["budget_tracker"].per_agent_spend
     assert per_agent_spend["planner"] > 0
     assert per_agent_spend["researcher"] > 0
+
+
+@pytest.mark.asyncio
+async def test_recovery_triggered_by_low_evidence_quality() -> None:
+    critic = FlipFlopCritic(_critic(), fail_reviews=1)
+    orchestrator = _orchestrator(
+        critic=critic,
+        faithfulness=FakeMetric("faithfulness", 0.9),
+    )
+
+    state = await orchestrator.run("What is FAISS?")
+
+    assert state["pipeline_status"] == PipelineStatus.DONE
+    assert state["quality_decision"] is not None
+    assert state["quality_decision"].decision == "PASS"
+    assert state["recovery_attempts"]["research"] == 1
+    assert critic.review_count == 2
+
+
+@pytest.mark.asyncio
+async def test_recovery_exhaustion_after_persistent_critic_failure() -> None:
+    critic = FlipFlopCritic(_critic(), fail_reviews=99)
+    orchestrator = _orchestrator(
+        critic=critic,
+        faithfulness=FakeMetric("faithfulness", 0.9),
+    )
+
+    state = await orchestrator.run("What is FAISS?")
+
+    assert state["pipeline_status"] == PipelineStatus.FAILED
+    assert isinstance(state["error"], PipelineError)
+    assert state["error"].stage == "recovery"
+    assert state["recovery_attempts"]["research"] == 2
+
+
+@pytest.mark.asyncio
+async def test_recovery_node_resets_partial_state() -> None:
+    setup_orchestrator = _orchestrator(faithfulness=FakeMetric("faithfulness", 0.9))
+    state = await setup_orchestrator.run("What is FAISS?")
+    state["failed_tasks"] = ["task-2"]
+
+    result = await recovery_node(state)
+
+    assert result["findings"] == []
+    assert result["failed_tasks"] == []
+    assert result["critic_report"] is None
+    assert result["recovery_attempts"]["research"] == 1
+    assert result["pipeline_status"] == PipelineStatus.RECOVERY

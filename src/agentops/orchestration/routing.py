@@ -5,10 +5,26 @@ from typing import Literal
 from agentops.orchestration.state import PipelineError, PipelineState, PipelineStatus
 
 
-def route_after_research(state: PipelineState) -> Literal["proceed", "halt"]:
-    """Route away from research failures before critique."""
+def route_after_research(state: PipelineState) -> Literal["proceed", "recover"]:
+    """Route research failures into recovery."""
 
-    return "halt" if state["pipeline_status"] == PipelineStatus.FAILED else "proceed"
+    return (
+        "recover" if state["pipeline_status"] == PipelineStatus.RECOVERY else "proceed"
+    )
+
+
+def route_after_critique(state: PipelineState) -> Literal["proceed", "recover"]:
+    """Route low-quality evidence into recovery."""
+
+    return (
+        "recover" if state["pipeline_status"] == PipelineStatus.RECOVERY else "proceed"
+    )
+
+
+def route_after_recovery(state: PipelineState) -> Literal["retry", "fail"]:
+    """Retry research until the recovery circuit breaker opens."""
+
+    return "fail" if state["pipeline_status"] == PipelineStatus.FAILED else "retry"
 
 
 def route_quality_decision(state: PipelineState) -> Literal["PASS", "REVISION", "FAIL"]:
