@@ -1,0 +1,4 @@
+{
+  "content": "{\"task_id\":\"task-1\",\"summary\":\"FAISS is an open-source library for efficient similarity search over dense vectors. It is commonly used in retrieval systems where embeddings need to be searched quickly at scale.\",\"key_facts\":[\"FAISS supports efficient similarity search over dense vectors.\",\"FAISS is commonly used in retrieval and vector search systems.\",\"The project includes algorithms for searching large vector collections.\"],\"sources\":[{\"url\":\"https://faiss.ai/\",\"title\":\"FAISS documentation\",\"relevance_score\":0.98},{\"url\":\"https://github.com/facebookresearch/faiss\",\"title\":\"FAISS GitHub\",\"relevance_score\":0.93}],\"confidence_score\":0.86,\"data_gaps\":[\"Benchmark performance depends on dataset shape and hardware.\"]}",
+  "error": false
+}

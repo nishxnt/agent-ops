@@ -1,0 +1,4 @@
+{
+  "content": "{\"task_id\":\"task-2\",\"summary\":\"FAISS is commonly used in retrieval pipelines to search embedding indexes and return nearest-neighbor candidates for downstream systems.\",\"key_facts\":[\"FAISS can index embeddings for retrieval workflows.\",\"Retrieval systems use FAISS to find nearest-neighbor candidates.\",\"FAISS search results can support downstream ranking or generation steps.\"],\"sources\":[{\"url\":\"https://faiss.ai/\",\"title\":\"FAISS documentation\",\"relevance_score\":0.98},{\"url\":\"https://github.com/facebookresearch/faiss\",\"title\":\"FAISS GitHub\",\"relevance_score\":0.93}],\"confidence_score\":0.84,\"data_gaps\":[\"Deployment architecture varies by application.\"]}",
+  "error": false
+}

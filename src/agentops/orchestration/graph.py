@@ -19,7 +19,7 @@ from agentops.orchestration.nodes import (
     research_node,
     write_node,
 )
-from agentops.orchestration.routing import route_quality_decision
+from agentops.orchestration.routing import route_after_research, route_quality_decision
 from agentops.orchestration.state import PipelineState, initial_state
 
 
@@ -62,7 +62,14 @@ class PipelineOrchestrator:
 
         graph.set_entry_point("plan")
         graph.add_edge("plan", "research")
-        graph.add_edge("research", "critique")
+        graph.add_conditional_edges(
+            "research",
+            route_after_research,
+            {
+                "proceed": "critique",
+                "halt": END,
+            },
+        )
         graph.add_edge("critique", "write")
         graph.add_edge("write", "quality_check")
         graph.add_conditional_edges(

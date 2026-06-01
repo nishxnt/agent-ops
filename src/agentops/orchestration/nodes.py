@@ -1,10 +1,13 @@
 """Async LangGraph node functions for the Phase 2 pipeline."""
 
+import asyncio
+
 from agentops.agents.critic import CriticAgent
-from agentops.agents.planner import PlannerAgent
+from agentops.agents.planner import PlannerAgent, ResearchSubtask
 from agentops.agents.quality_gate import QualityGateAgent
-from agentops.agents.researcher import ResearcherAgent
+from agentops.agents.researcher import ResearcherAgent, ResearchFinding
 from agentops.agents.writer import WriterAgent
+from agentops.config import get_settings
 from agentops.orchestration.state import PipelineError, PipelineState, PipelineStatus
 
 
@@ -24,19 +27,42 @@ async def research_node(
     *,
     researcher: ResearcherAgent,
 ) -> PipelineState:
-    """Run Phase 2 M1 sequential research for every planned subtask."""
+    """Run planned research subtasks concurrently and tolerate partial failures."""
 
     plan = state["plan"]
     if plan is None:
         raise PipelineError("Cannot research without a plan.", stage="research")
 
-    findings = list(state["findings"])
-    failed_tasks = list(state["failed_tasks"])
-    for subtask in plan.subtasks:
-        try:
-            findings.append(await researcher.research(subtask))
-        except Exception:
+    settings = get_settings()
+    timeout_s = settings.researcher_timeout_secs
+
+    async def _run_one(subtask: ResearchSubtask) -> ResearchFinding:
+        return await asyncio.wait_for(researcher.research(subtask), timeout=timeout_s)
+
+    results = await asyncio.gather(
+        *(_run_one(subtask) for subtask in plan.subtasks),
+        return_exceptions=True,
+    )
+
+    findings: list[ResearchFinding] = []
+    failed_tasks: list[str] = []
+    for subtask, result in zip(plan.subtasks, results, strict=True):
+        if isinstance(result, BaseException):
             failed_tasks.append(subtask.task_id)
+        else:
+            findings.append(result)
+
+    if not findings:
+        return {
+            **state,
+            "findings": [],
+            "failed_tasks": failed_tasks,
+            "pipeline_status": PipelineStatus.FAILED,
+            "error": PipelineError(
+                f"All {len(plan.subtasks)} researchers failed.",
+                stage="research",
+            ),
+        }
 
     return {
         **state,

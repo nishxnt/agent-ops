@@ -1,0 +1,4 @@
+{
+  "content": "{\"query\":\"What is FAISS?\",\"subtasks\":[{\"task_id\":\"task-1\",\"description\":\"Find core facts about FAISS and its primary use cases.\",\"search_keywords\":[\"FAISS\",\"similarity search\",\"vector database\"],\"expected_output_type\":\"factual\"},{\"task_id\":\"task-2\",\"description\":\"Identify how FAISS is commonly used in retrieval workflows.\",\"search_keywords\":[\"FAISS\",\"retrieval\",\"embeddings\"],\"expected_output_type\":\"analytical\"},{\"task_id\":\"task-3\",\"description\":\"Summarize FAISS scale and indexing capabilities.\",\"search_keywords\":[\"FAISS\",\"indexing\",\"large vector collections\"],\"expected_output_type\":\"factual\"}],\"estimated_complexity\":\"medium\",\"recommended_researcher_count\":3}",
+  "error": false
+}
