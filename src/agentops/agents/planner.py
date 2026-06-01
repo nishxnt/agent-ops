@@ -54,6 +54,7 @@ class PlannerAgent:
                 {"role": "user", "content": query},
             ],
             model=self.llm_client.model,
+            agent_type="planner",
         )
         response = await self.llm_client.complete(request)
         return ResearchPlan.model_validate(json.loads(response.content))

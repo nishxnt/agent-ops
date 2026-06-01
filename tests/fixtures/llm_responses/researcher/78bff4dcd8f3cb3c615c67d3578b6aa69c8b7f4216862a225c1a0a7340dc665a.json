@@ -1,0 +1,4 @@
+{
+  "content": "{\"task_id\":\"task-3\",\"summary\":\"FAISS includes indexing approaches for searching large vector collections efficiently, with performance depending on index choice and hardware.\",\"key_facts\":[\"FAISS includes indexes for large vector collections.\",\"Index choice affects search speed and recall tradeoffs.\",\"Hardware and dataset shape influence FAISS benchmark performance.\"],\"sources\":[{\"url\":\"https://faiss.ai/\",\"title\":\"FAISS documentation\",\"relevance_score\":0.98},{\"url\":\"https://github.com/facebookresearch/faiss\",\"title\":\"FAISS GitHub\",\"relevance_score\":0.93}],\"confidence_score\":0.83,\"data_gaps\":[\"Specific benchmark numbers require workload-specific measurement.\"]}",
+  "error": false
+}

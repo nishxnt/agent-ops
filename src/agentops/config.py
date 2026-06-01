@@ -53,6 +53,9 @@ class Settings(BaseSettings):
     langsmith_project: str = Field(default="agentops", alias="LANGSMITH_PROJECT")
     langsmith_tracing: bool = Field(default=True, alias="LANGSMITH_TRACING")
     default_token_budget: int = Field(default=50_000, alias="DEFAULT_TOKEN_BUDGET")
+    budget_token_limit: int = Field(default=50_000, alias="BUDGET_TOKEN_LIMIT")
+    researcher_timeout_secs: int = Field(default=30, alias="RESEARCHER_TIMEOUT_SECS")
+    max_recovery_attempts: int = Field(default=2, alias="MAX_RECOVERY_ATTEMPTS")
     quality_gate_max_revisions: int = Field(
         default=2, alias="QUALITY_GATE_MAX_REVISIONS"
     )

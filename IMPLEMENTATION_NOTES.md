@@ -1,41 +1,21 @@
 # Implementation Notes
 
-## Milestone 1
+## Phase 2 Milestone 3 Budget Accounting
 
-- Established the portable Python project foundation with `uv` on `PATH`.
-- Pinned Python to 3.12 via `.python-version`.
-- Added initial lint, type-check, test, and mock-run commands.
-- Kept Phase 0 restricted directories untouched.
+- `BudgetGuard` charges calls routed through `agentops.llm.client.LLMClient.complete`.
+- RogueLLM metric judges inside `QualityGateAgent` construct their own LLM clients and do not route through `agentops.llm.client`, so those judge calls are not charged against the Phase 2 M3 budget. Track this as a Phase 3 follow-up.
+- On `BUDGET_HALTED`, `plan`, `findings`, and later graph state fields are the initial-state values because LangGraph does not surface mid-run state on exception. Only `budget_tracker` is current. Phase 3 audit logging will capture per-node checkpoints.
 
-## Phase 0 Summary
+## Phase 2 Milestone 4 Recovery Scope
 
-- Added the portable Python package skeleton under `src/agentops`.
-- Added a Helm chart skeleton without Kubernetes templates.
-- Added execution-mode settings, LLM client factory plumbing, cached search,
-  deterministic fixtures, and a mock infrastructure smoke path.
-- Verified `make lint`, `make test`, and `make run-mock`.
+- Recovery is retry-only in Phase 2 M4. The spec section 5.2 degrade path that proceeds to critique with partial findings is deferred until after Phase 2 to keep the recovery diff bounded.
 
-## Phase 1 Summary
+## Phase 2 Wrap-Up — Deferred Items
 
-- Shipped five agents: Planner, Researcher, Critic, Writer, and Quality Gate.
-- Each agent has Pydantic schemas and at least five unit tests.
-- Critic uses a two-stage review path: embedding-floor candidate detection,
-  followed by LLM adjudication for candidate contradictions.
-- Writer builds reports section by section from critic-verified facts and
-  carries low-confidence evidence into acknowledged data gaps.
-- Quality Gate integrates RogueLLM editably and enforces cross-family
-  evaluation through the evaluation-model role.
-- Cross-agent integration tests prove the five real agent classes compose
-  end-to-end in mock mode without LangGraph orchestration.
+The following deviate from spec §6 Phase 2 and are captured for post-Phase-2 follow-up.
 
-## Known limitations / follow-ups
-
-- Mock fixtures live in `tests/fixtures`; containerized mock mode will need
-  those fixtures moved into package data or mounted explicitly.
-- `mock_pipeline_run` assumes at least one search result.
-FAISS local KB deferred — Researcher uses CachedSearchClient only in this milestone.
-- FAISS local KB remains deferred into Phase 2.
-- Real RAGAS/DeepEval live calls are only exercised in cloud mode; mock mode
-  uses fake scorers.
-- Quality Gate revision loop is not wired yet; Phase 1 returns the REVISION
-  decision and instruction only.
+- **Recovery degrade path omitted (M4).** Spec §5.2 describes retry and degrade strategies. M4 implements retry-only. Degrade requires a force-proceed signal to the critic and adds another routing decision — deferred.
+- **RogueLLM metric calls not budget-charged (M3).** The faithfulness and hallucination judges inside QualityGateAgent construct their own LLM clients (via RogueLLM) and do not route through `agentops.llm.client.complete()`. Their token spend is not counted toward the BudgetGuard. Closing requires either plumbing a shared LLMClient through RogueLLM, or a separate cost tracker on the agent.
+- **Partial state on BUDGET_HALTED (M3).** When BudgetExceededError is caught at the orchestrator boundary, the returned state has plan, findings, critic_report, and report at initial-state values. LangGraph doesn't surface mid-execution state on exception. Only `budget_tracker` reflects actual progress. Phase 3 audit logging will capture per-node checkpoints.
+- **MockLLMClient token cap (M3).** Mock responses are capped at 10 prompt + 10 completion tokens per call regardless of fixture content. This makes budget tests deterministic but means mock mode does not reflect realistic token consumption. Real provider clients preserve true usage accounting.
+- **Quality Gate mock-mode stubs (M5).** In MOCK mode, QualityGateAgent defaults to fixed-score metric stubs (faithfulness=0.9, hallucination=0.05) rather than RogueLLM judges so mock mode is fully offline. LOCAL and CLOUD modes use real judges.

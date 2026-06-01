@@ -9,6 +9,7 @@ from typing import Any, cast
 from groq import AsyncGroq
 from ollama import AsyncClient as AsyncOllamaClient
 
+from agentops.budget.context import current_budget_guard
 from agentops.config import AgentOpsMode, LLMRole, Settings, get_settings
 from agentops.llm.models import LLMError, LLMRequest, LLMResponse
 
@@ -16,23 +17,37 @@ from agentops.llm.models import LLMError, LLMRequest, LLMResponse
 class LLMClient(ABC):
     """Abstract provider-neutral LLM client."""
 
-    def __init__(self, model: str) -> None:
+    def __init__(self, *, model: str) -> None:
         self.model = model
 
-    @abstractmethod
     async def complete(self, request: LLMRequest) -> LLMResponse:
         """Complete a chat request."""
+
+        response = await self._do_complete(request)
+        guard = current_budget_guard.get()
+        if guard is not None:
+            guard.check_and_charge(
+                prompt_tokens=response.prompt_tokens,
+                completion_tokens=response.completion_tokens,
+                model=response.model,
+                agent_type=request.agent_type,
+            )
+        return response
+
+    @abstractmethod
+    async def _do_complete(self, request: LLMRequest) -> LLMResponse:
+        """Provider-specific completion implementation."""
 
 
 class MockLLMClient(LLMClient):
     """Deterministic fixture-backed LLM client for network-free development."""
 
     def __init__(self, model: str, fixture_dir: Path | None = None) -> None:
-        super().__init__(model)
+        super().__init__(model=model)
         self.fixture_dir = fixture_dir or _fixture_root() / "llm_responses"
         self.invocation_count = 0
 
-    async def complete(self, request: LLMRequest) -> LLMResponse:
+    async def _do_complete(self, request: LLMRequest) -> LLMResponse:
         """Return deterministic fixture content for a request."""
 
         self.invocation_count += 1
@@ -45,16 +60,27 @@ class MockLLMClient(LLMClient):
         return LLMResponse(
             content=content,
             model=request.model,
-            prompt_tokens=_estimate_tokens(prompt_text),
-            completion_tokens=_estimate_tokens(content),
+            prompt_tokens=min(10, _estimate_tokens(prompt_text)),
+            completion_tokens=min(10, _estimate_tokens(content)),
         )
 
     def _load_fixture(self, request: LLMRequest) -> dict[str, Any]:
         payload = json.dumps(request.messages, sort_keys=True)
         digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()
-        fixture_path = self.fixture_dir / f"{digest}.json"
+        fixture_dir = self.fixture_dir
+        agent_fixture_dir = fixture_dir / request.agent_type
+        if agent_fixture_dir.is_dir():
+            fixture_dir = agent_fixture_dir
+
+        fixture_path = fixture_dir / f"{digest}.json"
         if not fixture_path.exists():
-            fixture_path = self.fixture_dir / "default.json"
+            fixture_path = fixture_dir / "default.json"
+        if (
+            request.agent_type == "writer"
+            and "executive_summary" in payload
+            and (fixture_dir / "executive_summary.json").exists()
+        ):
+            fixture_path = fixture_dir / "executive_summary.json"
         return cast(
             dict[str, Any],
             json.loads(fixture_path.read_text(encoding="utf-8")),
@@ -65,10 +91,10 @@ class OllamaLLMClient(LLMClient):
     """Ollama-backed local LLM client."""
 
     def __init__(self, model: str, base_url: str) -> None:
-        super().__init__(model)
+        super().__init__(model=model)
         self.client = AsyncOllamaClient(host=base_url)
 
-    async def complete(self, request: LLMRequest) -> LLMResponse:
+    async def _do_complete(self, request: LLMRequest) -> LLMResponse:
         """Complete a request via Ollama."""
 
         try:
@@ -101,10 +127,10 @@ class GroqLLMClient(LLMClient):
     """Groq-backed cloud LLM client."""
 
     def __init__(self, model: str, api_key: str | None) -> None:
-        super().__init__(model)
+        super().__init__(model=model)
         self.client = AsyncGroq(api_key=api_key or "missing-api-key")
 
-    async def complete(self, request: LLMRequest) -> LLMResponse:
+    async def _do_complete(self, request: LLMRequest) -> LLMResponse:
         """Complete a request via Groq."""
 
         try:

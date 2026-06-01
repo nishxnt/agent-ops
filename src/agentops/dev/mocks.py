@@ -24,6 +24,7 @@ async def mock_pipeline_run(query: str) -> dict[str, str | int]:
                 },
             ],
             model=settings.model_for(LLMRole.GENERATION),
+            agent_type="dev_generation",
         )
     )
     evaluation_response = await evaluation_client.complete(
@@ -33,6 +34,7 @@ async def mock_pipeline_run(query: str) -> dict[str, str | int]:
                 {"role": "user", "content": generation_response.content},
             ],
             model=settings.model_for(LLMRole.EVALUATION),
+            agent_type="dev_evaluation",
         )
     )
 

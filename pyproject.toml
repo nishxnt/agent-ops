@@ -36,6 +36,7 @@ dev = [
 
 [project.scripts]
 agentops-mock = "agentops.dev.run_mock_pipeline:main"
+agentops-run = "agentops.cli:main"
 
 [build-system]
 requires = ["hatchling"]

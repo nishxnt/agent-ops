@@ -10,6 +10,13 @@ class LLMRequest(BaseModel):
     model: str
     max_tokens: int = 1024
     temperature: float = 0.0
+    agent_type: str = Field(
+        default="unknown",
+        description=(
+            "The agent calling this request. Production callers must set this "
+            'explicitly; "unknown" is a safety net.'
+        ),
+    )
 
 
 class LLMResponse(BaseModel):

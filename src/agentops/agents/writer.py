@@ -96,6 +96,7 @@ class WriterAgent:
                 },
             ],
             model=self.llm_client.model,
+            agent_type="writer",
         )
         response = await self.llm_client.complete(request)
         return ReportSection.model_validate(json.loads(response.content))
@@ -127,6 +128,7 @@ class WriterAgent:
                 },
             ],
             model=self.llm_client.model,
+            agent_type="writer",
         )
         response = await self.llm_client.complete(request)
         return _ExecutiveSummary.model_validate(json.loads(response.content))
