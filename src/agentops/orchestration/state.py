@@ -4,13 +4,12 @@ from enum import StrEnum
 from typing import TypedDict
 from uuid import uuid4
 
-from pydantic import BaseModel
-
 from agentops.agents.critic import CriticReport
 from agentops.agents.planner import ResearchPlan
 from agentops.agents.quality_gate import QualityDecision
 from agentops.agents.researcher import ResearchFinding
 from agentops.agents.writer import ResearchReport
+from agentops.audit.schema import AuditEntry as AuditEntry
 from agentops.budget.guard import BudgetGuard
 from agentops.config import Settings, get_settings
 
@@ -28,15 +27,6 @@ class PipelineStatus(StrEnum):
     FAILED = "FAILED"
     BUDGET_HALTED = "BUDGET_HALTED"
     RECOVERY = "RECOVERY"
-
-
-class AuditEntry(BaseModel):
-    """Stub. Full hash-chained schema in Phase 3."""
-
-    run_id: str
-    agent_type: str
-    timestamp_utc: str
-    status: str
 
 
 class PipelineError(Exception):

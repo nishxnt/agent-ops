@@ -1,0 +1,10 @@
+{
+  "title": "What is FAISS?",
+  "executive_summary": "The reviewed evidence supports a concise report on FAISS capabilities, with section-level confidence derived from verified facts and explicit acknowledgement of weak evidence areas.",
+  "sections": [
+    {
+      "title": "Vector Search Capabilities",
+      "content": "The verified evidence shows that FAISS supports dense-vector search and indexing workflows used in retrieval systems."
+    }
+  ]
+}

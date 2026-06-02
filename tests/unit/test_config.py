@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from agentops.config import AgentOpsMode, LLMRole, Settings
 
 
@@ -8,7 +10,10 @@ def test_settings_load_defaults() -> None:
     assert settings.default_token_budget == 50_000
     assert settings.budget_token_limit == 50_000
     assert settings.max_recovery_attempts == 2
-    assert settings.audit_db_path == ".data/audit.db"
+    assert settings.audit_db_path == Path("./audit.sqlite")
+    assert settings.langsmith_enabled is False
+    assert settings.langsmith_api_key == ""
+    assert settings.langsmith_project == "agentops"
 
 
 def test_model_for_cloud_mode_uses_cloud_models() -> None:

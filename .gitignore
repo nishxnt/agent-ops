@@ -8,7 +8,11 @@ __pycache__/
 .agentops-cache/
 .env
 *.db
+# Audit DB and any other local SQLite artifacts
 *.sqlite
+*.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
 .data/
 .coverage
 htmlcov/

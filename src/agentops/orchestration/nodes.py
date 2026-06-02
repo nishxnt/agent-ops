@@ -9,9 +9,11 @@ from agentops.agents.researcher import ResearcherAgent, ResearchFinding
 from agentops.agents.writer import WriterAgent
 from agentops.budget.guard import BudgetExceededError
 from agentops.config import get_settings
+from agentops.observability.tracing import traced_node
 from agentops.orchestration.state import PipelineError, PipelineState, PipelineStatus
 
 
+@traced_node("plan")
 async def planning_node(
     state: PipelineState,
     *,
@@ -23,6 +25,7 @@ async def planning_node(
     return {**state, "plan": plan, "pipeline_status": PipelineStatus.RESEARCHING}
 
 
+@traced_node("research")
 async def research_node(
     state: PipelineState,
     *,
@@ -71,6 +74,7 @@ async def research_node(
     }
 
 
+@traced_node("critique")
 async def critique_node(
     state: PipelineState,
     *,
@@ -91,6 +95,7 @@ async def critique_node(
     }
 
 
+@traced_node("recovery")
 async def recovery_node(state: PipelineState) -> PipelineState:
     """Decide whether to retry research or fail the pipeline."""
 
@@ -121,6 +126,7 @@ async def recovery_node(state: PipelineState) -> PipelineState:
     }
 
 
+@traced_node("write")
 async def write_node(
     state: PipelineState,
     *,
@@ -141,6 +147,7 @@ async def write_node(
     }
 
 
+@traced_node("quality_check")
 async def quality_check_node(
     state: PipelineState,
     *,

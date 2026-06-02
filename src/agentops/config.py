@@ -1,6 +1,7 @@
 """Configuration primitives for AgentOps execution modes."""
 
 from enum import StrEnum
+from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -48,9 +49,29 @@ class Settings(BaseSettings):
         default="llama3.1:8b", alias="LOCAL_EVALUATION_MODEL"
     )
     tavily_api_key: str | None = Field(default=None, alias="TAVILY_API_KEY")
-    langsmith_api_key: str | None = Field(default=None, alias="LANGSMITH_API_KEY")
-    langsmith_project: str = Field(default="agentops", alias="LANGSMITH_PROJECT")
+    langsmith_enabled: bool = Field(
+        default=False,
+        validation_alias="LANGSMITH_ENABLED",
+    )
+    langsmith_endpoint: str = Field(
+        default="https://api.smith.langchain.com/otel/v1/traces",
+        validation_alias="LANGSMITH_ENDPOINT",
+    )
+    langsmith_api_key: str = Field(default="", validation_alias="LANGSMITH_API_KEY")
+    langsmith_project: str = Field(
+        default="agentops",
+        validation_alias="LANGSMITH_PROJECT",
+    )
     langsmith_tracing: bool = Field(default=True, alias="LANGSMITH_TRACING")
+    phoenix_endpoint: str = Field(
+        default="",
+        validation_alias="PHOENIX_ENDPOINT",
+        description="OTLP HTTP endpoint for Phoenix. Empty = no export.",
+    )
+    tracing_enabled: bool = Field(
+        default=True,
+        validation_alias="TRACING_ENABLED",
+    )
     default_token_budget: int = Field(default=50_000, alias="DEFAULT_TOKEN_BUDGET")
     budget_token_limit: int = Field(default=50_000, alias="BUDGET_TOKEN_LIMIT")
     researcher_timeout_secs: int = Field(default=30, alias="RESEARCHER_TIMEOUT_SECS")
@@ -64,7 +85,10 @@ class Settings(BaseSettings):
     search_cache_ttl_seconds: int = Field(
         default=2_592_000, alias="AGENTOPS_SEARCH_CACHE_TTL_SECONDS"
     )
-    audit_db_path: str = Field(default=".data/audit.db", alias="AUDIT_DB_PATH")
+    audit_db_path: Path = Field(
+        default=Path("./audit.sqlite"),
+        validation_alias="AUDIT_DB_PATH",
+    )
 
     def model_for(self, role: LLMRole) -> str:
         """Return the configured model for a role in the active execution mode."""

@@ -11,6 +11,8 @@ from agentops.agents.planner import PlannerAgent
 from agentops.agents.quality_gate import QualityGateAgent
 from agentops.agents.researcher import ResearcherAgent
 from agentops.agents.writer import WriterAgent
+from agentops.audit.context import current_audit_logger, current_run_id
+from agentops.audit.log import AuditLogger
 from agentops.budget.context import current_budget_guard
 from agentops.budget.guard import BudgetExceededError
 from agentops.config import Settings, get_settings
@@ -49,6 +51,7 @@ class PipelineOrchestrator:
         settings: Settings | None = None,
     ) -> None:
         self.settings = settings or get_settings()
+        self.audit_logger = AuditLogger(db_path=self.settings.audit_db_path)
         self.planner = planner or PlannerAgent()
         self.researcher = researcher or ResearcherAgent()
         self.critic = critic or CriticAgent()
@@ -117,7 +120,9 @@ class PipelineOrchestrator:
 
         state = initial_state(query, run_id=run_id, settings=self.settings)
         guard = state["budget_tracker"]
-        token = current_budget_guard.set(guard)
+        budget_token = current_budget_guard.set(guard)
+        audit_token = current_audit_logger.set(self.audit_logger)
+        run_id_token = current_run_id.set(state["run_id"])
         try:
             result = await self.graph.ainvoke(state)
             return cast(PipelineState, result)
@@ -132,4 +137,6 @@ class PipelineOrchestrator:
                 },
             )
         finally:
-            current_budget_guard.reset(token)
+            current_run_id.reset(run_id_token)
+            current_audit_logger.reset(audit_token)
+            current_budget_guard.reset(budget_token)

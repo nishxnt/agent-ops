@@ -1,0 +1,18 @@
+{
+  "run_id": "phase-3-demo-run",
+  "query": "What is FAISS?",
+  "pipeline_status": "DONE",
+  "decision": "PASS",
+  "revision_count": 0,
+  "recovery_attempts": {},
+  "report_sections": 1,
+  "budget_spent": 80,
+  "budget_total": 50000,
+  "per_agent_spend": {
+    "planner": 20,
+    "researcher": 20,
+    "writer": 40
+  },
+  "failed_tasks": [],
+  "error": null
+}
