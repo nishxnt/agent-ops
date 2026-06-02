@@ -1,0 +1,70 @@
+{
+  "run_id": "phase-3-demo-run",
+  "chain_verified": true,
+  "entries": [
+    {
+      "run_id": "phase-3-demo-run",
+      "agent_type": "planner",
+      "timestamp_utc": "2026-06-02T07:59:20.669715+00:00",
+      "input_hash": "7d9ae68268b0fa7b2d2e3a49a25e57d17fa4e28a5e07036d2c6652119d9b1e3b",
+      "output_hash": "1c5fb9aef55284131553345202894025fcad02184e331229cff414cb202304dc",
+      "model_id": "qwen2.5:7b",
+      "model_version": "qwen2.5:7b",
+      "latency_ms": 0,
+      "prompt_tokens": 10,
+      "completion_tokens": 10,
+      "confidence_score": null,
+      "reasoning_trace": null,
+      "parent_run_id": null,
+      "status": "SUCCESS"
+    },
+    {
+      "run_id": "phase-3-demo-run",
+      "agent_type": "researcher",
+      "timestamp_utc": "2026-06-02T07:59:20.671699+00:00",
+      "input_hash": "459b42b8427663f459063c7f9abf80929abf8884e900fed6c00505ca36bd2cf4",
+      "output_hash": "c8917c45a17d7be0a735844756eac293e1b7b0f3e386ef6db1eec5cbf2147183",
+      "model_id": "qwen2.5:7b",
+      "model_version": "qwen2.5:7b",
+      "latency_ms": 0,
+      "prompt_tokens": 10,
+      "completion_tokens": 10,
+      "confidence_score": null,
+      "reasoning_trace": null,
+      "parent_run_id": null,
+      "status": "SUCCESS"
+    },
+    {
+      "run_id": "phase-3-demo-run",
+      "agent_type": "writer",
+      "timestamp_utc": "2026-06-02T07:59:20.749630+00:00",
+      "input_hash": "9d5cdd9a3b47072e68620206665896a8cd14df4488027c0d49728bc87096adb6",
+      "output_hash": "5498f0be4b0bec3ed1e839b456822e5bcb0fb4140519599b928d4fb11c58f835",
+      "model_id": "qwen2.5:7b",
+      "model_version": "qwen2.5:7b",
+      "latency_ms": 0,
+      "prompt_tokens": 10,
+      "completion_tokens": 10,
+      "confidence_score": null,
+      "reasoning_trace": null,
+      "parent_run_id": null,
+      "status": "SUCCESS"
+    },
+    {
+      "run_id": "phase-3-demo-run",
+      "agent_type": "writer",
+      "timestamp_utc": "2026-06-02T07:59:20.750313+00:00",
+      "input_hash": "2dce46d09583cf28722dbfe34b7bad6db4e05b3e1bec1e0dfb0e463766c0159a",
+      "output_hash": "1ba615366335b959be7fe0b039d54be90953dcb8cd0f10cd680a7ed4ae7cbaec",
+      "model_id": "qwen2.5:7b",
+      "model_version": "qwen2.5:7b",
+      "latency_ms": 0,
+      "prompt_tokens": 10,
+      "completion_tokens": 10,
+      "confidence_score": null,
+      "reasoning_trace": null,
+      "parent_run_id": null,
+      "status": "SUCCESS"
+    }
+  ]
+}

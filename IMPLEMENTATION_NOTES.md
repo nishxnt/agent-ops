@@ -49,3 +49,10 @@ Manual LangSmith smoke:
 4. Check `https://smith.langchain.com/o/.../projects/p/agentops-dev` for a trace with spans `plan`, `research`, `critique`, `write`, and `quality_check`.
 
 This is intentionally manual; automating it would require either mocking LangSmith's API or running CI against the real endpoint.
+
+## Phase 3 Wrap-Up — Deferred Items
+
+- **Failed-call audit entries (M2).** When `_do_complete` raises an exception, no audit row is written because token and latency data are unavailable. Capturing failures with `status="FAILED"` plus an `error_message` column is a Phase 4+ enhancement.
+- **BUDGET_HALTED / RECOVERED audit entries (M2).** All M2 audits have `status="SUCCESS"`. Policy-decision entries, such as the orchestrator writing rows directly to mark `BUDGET_HALTED` at the moment of halt or `RECOVERED` after a recovery cycle succeeds, are a follow-up.
+- **LangSmith Run hierarchy (M4).** Current integration exports flat OTel spans via OTLP. A richer nested-run hierarchy (parent run plus child runs per agent call) would require the langsmith Python SDK and parallel orchestration code. Trade-off chosen: keep the OTel surface unified. Revisit if the LangSmith UX is insufficient.
+- **Phoenix/LangSmith screenshots (M5).** Manual procedure documented in README; live captures are part of Phase 6 polish.
