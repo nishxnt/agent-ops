@@ -33,3 +33,13 @@ make run-mock
 - LangSmith: `LANGSMITH_ENABLED=true`, `LANGSMITH_API_KEY=...`, optional `LANGSMITH_PROJECT=agentops`
 
 Both backends are independent; either, both, or neither can be enabled. Default is no export; spans are emitted but dropped.
+
+## Kubernetes Deployment (minikube)
+
+```bash
+make k8s-up      # build image into minikube, apply manifests
+make k8s-smoke   # curl through NodePort, run a pipeline
+make k8s-down    # remove all resources
+```
+
+Architecture: one API gateway Pod with the orchestrator running in-process. Audit DB on a 1Gi RWO PersistentVolumeClaim. Exposed via NodePort 30080. Single replica because the run registry is in-memory; horizontal scaling is a known follow-up.

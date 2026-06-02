@@ -1,4 +1,4 @@
-.PHONY: install format test lint smoke-infra run-mock run-local serve docker-build docker-run docker-smoke deploy teardown
+.PHONY: install format test lint smoke-infra run-mock run-local serve docker-build docker-run docker-smoke k8s-up k8s-smoke k8s-down deploy teardown
 
 install:
 	uv sync
@@ -66,6 +66,38 @@ docker-smoke:
 		echo "Final status:"; curl -s http://localhost:8001/status/$$run_id | python -m json.tool
 	@docker stop agentops-api-smoke >/dev/null
 	@echo "Smoke complete."
+
+k8s-up:
+	minikube status > /dev/null 2>&1 || minikube start --cpus=2 --memory=4g
+	eval $$(minikube docker-env) && \
+		docker build -f docker/api.Dockerfile -t agentops-api:dev .
+	kubectl apply -k k8s/
+	kubectl rollout status deployment/agentops-api-gateway --timeout=120s
+	@echo ""
+	@echo "Service URL: $$(minikube service agentops-api-gateway --url)"
+
+k8s-smoke:
+	@url=$$(minikube service agentops-api-gateway --url); \
+	echo "Healthz:"; curl -s $$url/healthz; echo; \
+	echo "Readyz:"; curl -s $$url/readyz; echo; \
+	echo "POST /run:"; \
+	run_id=$$(curl -s -X POST $$url/run \
+		-H 'content-type: application/json' \
+		-d '{"query":"What is FAISS?"}' \
+		| python -c "import sys,json;print(json.load(sys.stdin)['run_id'])"); \
+	echo "  run_id=$$run_id"; \
+	for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do \
+		status=$$(curl -s $$url/status/$$run_id \
+			| python -c "import sys,json;print(json.load(sys.stdin)['status'])"); \
+		echo "  status=$$status"; \
+		[ "$$status" = "COMPLETED" ] && break; \
+		[ "$$status" = "FAILED" ] && break; \
+		sleep 2; \
+	done; \
+	echo "Final status:"; curl -s $$url/status/$$run_id | python -m json.tool
+
+k8s-down:
+	kubectl delete -k k8s/ || true
 
 deploy:
 	@echo "Kubernetes deployment is introduced after Phase 0."

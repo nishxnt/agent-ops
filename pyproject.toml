@@ -36,6 +36,7 @@ dev = [
     "pre-commit>=3.7",
     "pytest>=8.2",
     "pytest-asyncio>=0.23",
+    "pyyaml>=6.0",
     "ruff>=0.5",
 ]
 
@@ -74,6 +75,7 @@ pythonpath = ["."]
 asyncio_mode = "auto"
 markers = [
     "docker: tests that require a local Docker daemon",
+    "k8s: tests that require kubectl or a local Kubernetes cluster",
 ]
 
 [tool.uv.sources]

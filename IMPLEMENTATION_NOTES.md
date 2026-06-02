@@ -72,3 +72,11 @@ This is intentionally manual; automating it would require either mocking LangSmi
 - **AUDIT_DB_PATH default in image.** Set to `/home/agentops/audit.sqlite`, which the non-root user owns. In k8s, this path will be replaced by a PVC mount; M3 will set `AUDIT_DB_PATH` to a PVC-backed location.
 - **Single-process container.** The API gateway runs the orchestrator in-process. No separate orchestrator container. Splitting them is a post-portfolio enhancement.
 - **Mock image dependency boundary.** The Docker build skips the local editable `rogue-llm` package so the image can be built from this repository alone. MOCK mode uses fixed quality-gate metric stubs; LOCAL/CLOUD container modes would require publishing or vendoring RogueLLM as an installable package.
+
+## Phase 4 M3 — Raw Kubernetes Manifests Design
+
+- **Single-replica Deployment.** The FastAPI gateway keeps run state in an in-memory `RunRegistry`, so multiple replicas would split `/run` submission and `/status/{run_id}` polling across independent processes. Horizontal scaling requires a Redis-backed or DB-backed registry.
+- **Recreate rollout strategy.** The audit log uses a ReadWriteOnce PVC. `RollingUpdate` would briefly try to run two Pods mounting the same volume and can leave the replacement Pod pending. `Recreate` terminates the old Pod before the new one mounts the PVC.
+- **SecurityContext matches Dockerfile.** The Pod runs as uid/gid 1000 with `runAsNonRoot=true` and `fsGroup=1000`, matching the container user and ensuring the mounted PVC is writable by the non-root process.
+- **Minikube exposure and image loading.** Service type is NodePort on 30080 for simple local access without a load balancer or Ingress controller. `imagePullPolicy=Never` tells minikube to use the image built into its local Docker daemon via `eval $(minikube docker-env)`.
+- **Resource sizing.** Requests are `256Mi` memory and `250m` CPU; limits are `512Mi` and `500m`. This is enough for the mock-mode API gateway while keeping minikube resource use bounded.
