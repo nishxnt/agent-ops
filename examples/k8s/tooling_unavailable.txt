@@ -1,0 +1,12 @@
+Phase 4 M5 capture note:
+
+The local execution environment did not have helm, minikube, docker, or kubectl
+installed, so live deployment artifacts could not be captured here.
+
+Skipped:
+- rendered_chart.yaml: requires helm
+- kubectl_get_all.txt: requires kubectl and a deployed minikube release
+- kubectl_describe_pod.txt: requires kubectl and a deployed minikube release
+- smoke_output.txt: requires helm, minikube, docker, and kubectl
+
+The chart and manifests are committed under charts/agentops/ and k8s/.

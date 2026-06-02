@@ -4,7 +4,7 @@ AgentOps is a portfolio project for production-oriented multi-agent research wor
 
 ## Status
 
-Phase 3 complete: full observability stack with a hash-chained audit log (SQLite, tamper-evident), OpenTelemetry spans on every orchestration node, and optional export to Arize Phoenix and LangSmith via OTLP. Phase 4 (Kubernetes deployment) is next.
+Phase 4 complete: CLI, async HTTP API, Docker image, raw Kubernetes manifests, and Helm chart are implemented. The observability stack includes a hash-chained audit log, OpenTelemetry spans, and optional OTLP export to Arize Phoenix and LangSmith.
 
 ## Quick Start
 
@@ -34,23 +34,53 @@ make run-mock
 
 Both backends are independent; either, both, or neither can be enabled. Default is no export; spans are emitted but dropped.
 
-## Kubernetes Deployment (minikube)
+## Deployment
+
+### CLI
 
 ```bash
-make k8s-up      # build image into minikube, apply manifests
-make k8s-smoke   # curl through NodePort, run a pipeline
-make k8s-down    # remove all resources
+AGENTOPS_MODE=mock uv run agentops-run "What is FAISS?"
 ```
 
-Architecture: one API gateway Pod with the orchestrator running in-process. Audit DB on a 1Gi RWO PersistentVolumeClaim. Exposed via NodePort 30080. Single replica because the run registry is in-memory; horizontal scaling is a known follow-up.
-
-### Helm Deployment
+### HTTP API (local)
 
 ```bash
-make helm-lint        # validate chart
-make helm-template    # render manifests locally
-make helm-install     # build image into minikube, helm install
-make helm-uninstall   # remove the release
+AGENTOPS_MODE=mock uv run agentops-api
+curl -s http://localhost:8000/healthz
+curl -s -X POST http://localhost:8000/run \
+    -H 'content-type: application/json' \
+    -d '{"query":"What is FAISS?"}'
 ```
+
+### Docker
+
+```bash
+make docker-build
+make docker-smoke    # builds + curls through HTTP
+```
+
+### Kubernetes (raw manifests, for learning)
+
+```bash
+make k8s-up          # kustomize apply
+make k8s-smoke
+make k8s-down
+```
+
+### Kubernetes (Helm chart, for real)
+
+```bash
+make helm-install
+make k8s-smoke       # same smoke target works against the release
+make helm-uninstall
+```
+
+### What's in the chart
+
+- Single-replica API gateway Deployment with the orchestrator running in-process
+- 1Gi RWO PersistentVolumeClaim for the audit DB
+- NodePort 30080 in dev / ClusterIP in production
+- Non-root container (uid 1000), liveness and readiness probes
+- ConfigMap for pipeline tuning; Secret (optional) for LLM API keys
 
 The Helm chart packages the raw manifests from `k8s/` (kept for educational reference) with environment-aware values. `values.yaml` is the production default; `values.dev.yaml` overrides for minikube.

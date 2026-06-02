@@ -88,3 +88,11 @@ This is intentionally manual; automating it would require either mocking LangSmi
 - **Chart version versus app version.** `Chart.yaml` uses `version: 0.1.0` for the chart package and `appVersion: "0.5.0"` for the application. The image tag defaults to `appVersion` when `.Values.image.tag` is empty, but dev overrides it to `dev`.
 - **Raw manifests remain.** The `k8s/` directory is kept alongside the chart as the educational raw-primitives artifact. The Helm chart is the parameterized deployment artifact, not a reason to delete the M3 manifests.
 - **Ephemeral CI support.** `audit.persistence.enabled=false` omits both the PVC and Deployment volume mount, which allows chart rendering and lightweight CI smoke paths without provisioning storage.
+
+## Phase 4 Wrap-Up — Deferred Items
+
+- **Single-replica deployment (M3, M4).** The in-memory `RunRegistry` from M1 does not survive across replicas. Horizontal scaling requires a Redis-backed or DB-backed registry. Documented as a known limitation, not a bug.
+- **In-cluster Phoenix sidecar (M3, M4).** Phoenix is an opt-in external endpoint via `PHOENIX_ENDPOINT`; the Helm chart does not bring up Phoenix in-cluster. Adding a Phoenix Deployment and Service would be a Phase 6+ enhancement.
+- **Ingress / TLS (M3, M4).** Only NodePort exposure in dev. Real Ingress with cert-manager or Let's Encrypt is a deployment-target-specific concern, out of scope for the portfolio Helm chart.
+- **Helm chart museum / registry publishing (M4).** Chart is consumed by `helm install ./charts/agentops` locally. Publishing to a chart repo (OCI or Chart Museum) would be a release-engineering follow-up.
+- **k8s/ raw manifests retained (M4).** The raw manifests in `k8s/` are kept alongside the Helm chart in `charts/agentops/`. They are not a parallel deployment path; they are an educational artifact showing each k8s primitive in isolation. The chart is the canonical deployment surface.
