@@ -52,6 +52,15 @@ class Settings(BaseSettings):
     langsmith_api_key: str | None = Field(default=None, alias="LANGSMITH_API_KEY")
     langsmith_project: str = Field(default="agentops", alias="LANGSMITH_PROJECT")
     langsmith_tracing: bool = Field(default=True, alias="LANGSMITH_TRACING")
+    phoenix_endpoint: str = Field(
+        default="",
+        validation_alias="PHOENIX_ENDPOINT",
+        description="OTLP HTTP endpoint for Phoenix. Empty = no export.",
+    )
+    tracing_enabled: bool = Field(
+        default=True,
+        validation_alias="TRACING_ENABLED",
+    )
     default_token_budget: int = Field(default=50_000, alias="DEFAULT_TOKEN_BUDGET")
     budget_token_limit: int = Field(default=50_000, alias="BUDGET_TOKEN_LIMIT")
     researcher_timeout_secs: int = Field(default=30, alias="RESEARCHER_TIMEOUT_SECS")

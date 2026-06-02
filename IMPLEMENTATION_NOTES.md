@@ -26,3 +26,10 @@ The following deviate from spec §6 Phase 2 and are captured for post-Phase-2 fo
 - All M2 audit entries have status="SUCCESS". BUDGET_HALTED, RECOVERED, and FAILED statuses are reserved for orchestrator-layer entries that record policy decisions, not raw LLM calls. These will be wired in later milestones.
 - Audit append happens BEFORE budget.check_and_charge. Order: LLM call completes → audit recorded → budget policy applied. If budget then raises BudgetExceededError, the audit entry for the call is preserved (the call really happened; the policy halt is separate).
 - The AuditLogger is constructed once per PipelineOrchestrator and reused across runs. run_id discriminates entries. Single SQLite file under settings.audit_db_path.
+
+## Phase 3 M3 — OpenTelemetry + Phoenix Design
+
+- The `traced_node` decorator wraps every orchestration node function. Span names match LangGraph node names: `plan`, `research`, `critique`, `write`, `quality_check`, and `recovery`.
+- `TracerProvider` is set once per process. The CLI initializes tracing before `PipelineOrchestrator.run()`. Tests attach a shared `InMemorySpanExporter` at module import time and clear it between tests.
+- Phoenix export is opt-in via `settings.phoenix_endpoint`. The default empty value means OTel runs without an exporter, so spans are dropped. Users opt in by running `python -m phoenix.server.main serve` separately and setting `PHOENIX_ENDPOINT=http://localhost:6006/v1/traces`.
+- `arize-phoenix` remains a main dependency, pinned to `>=4.0,<5` for this milestone, because the CLI exposes Phoenix export as first-class runtime scaffolding.

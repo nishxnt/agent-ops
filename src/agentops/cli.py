@@ -5,6 +5,8 @@ import asyncio
 import json
 import sys
 
+from agentops.config import get_settings
+from agentops.observability.tracing import setup_tracing
 from agentops.orchestration.graph import PipelineOrchestrator
 from agentops.orchestration.state import PipelineStatus
 
@@ -17,7 +19,11 @@ def main() -> None:
     parser.add_argument("--run-id", default=None)
     args = parser.parse_args()
 
-    orchestrator = PipelineOrchestrator()
+    settings = get_settings()
+    if settings.tracing_enabled:
+        setup_tracing(endpoint=settings.phoenix_endpoint or None)
+
+    orchestrator = PipelineOrchestrator(settings=settings)
     state = asyncio.run(orchestrator.run(args.query, run_id=args.run_id))
 
     summary = {
