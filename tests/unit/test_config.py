@@ -11,6 +11,9 @@ def test_settings_load_defaults() -> None:
     assert settings.budget_token_limit == 50_000
     assert settings.max_recovery_attempts == 2
     assert settings.audit_db_path == Path("./audit.sqlite")
+    assert settings.langsmith_enabled is False
+    assert settings.langsmith_api_key == ""
+    assert settings.langsmith_project == "agentops"
 
 
 def test_model_for_cloud_mode_uses_cloud_models() -> None:

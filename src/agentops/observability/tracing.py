@@ -13,12 +13,18 @@ _TRACER_NAME = "agentops.orchestration"
 _PROVIDER: TracerProvider | None = None
 
 
-def setup_tracing(*, endpoint: str | None = None) -> TracerProvider:
+def setup_tracing(
+    *,
+    phoenix_endpoint: str | None = None,
+    langsmith_endpoint: str | None = None,
+    langsmith_api_key: str = "",
+    langsmith_project: str = "",
+) -> TracerProvider:
     """Initialize the global TracerProvider once per process.
 
-    If endpoint is provided, a BatchSpanProcessor with an OTLP HTTP exporter is
-    attached. Otherwise the provider exists but drops spans unless tests attach
-    an in-memory span processor.
+    Adds one BatchSpanProcessor per configured backend. Phoenix uses a plain
+    OTLP endpoint. LangSmith requires both an endpoint and an API key; project
+    is optional but recommended.
     """
 
     global _PROVIDER
@@ -26,9 +32,18 @@ def setup_tracing(*, endpoint: str | None = None) -> TracerProvider:
         return _PROVIDER
 
     provider = TracerProvider()
-    if endpoint:
+    if phoenix_endpoint:
         provider.add_span_processor(
-            BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint))
+            BatchSpanProcessor(OTLPSpanExporter(endpoint=phoenix_endpoint))
+        )
+    if langsmith_endpoint and langsmith_api_key:
+        headers = {"x-api-key": langsmith_api_key}
+        if langsmith_project:
+            headers["Langsmith-Project"] = langsmith_project
+        provider.add_span_processor(
+            BatchSpanProcessor(
+                OTLPSpanExporter(endpoint=langsmith_endpoint, headers=headers)
+            )
         )
     trace.set_tracer_provider(provider)
     _PROVIDER = provider

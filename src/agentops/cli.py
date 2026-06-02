@@ -21,7 +21,14 @@ def main() -> None:
 
     settings = get_settings()
     if settings.tracing_enabled:
-        setup_tracing(endpoint=settings.phoenix_endpoint or None)
+        setup_tracing(
+            phoenix_endpoint=settings.phoenix_endpoint or None,
+            langsmith_endpoint=(
+                settings.langsmith_endpoint if settings.langsmith_enabled else None
+            ),
+            langsmith_api_key=settings.langsmith_api_key,
+            langsmith_project=settings.langsmith_project,
+        )
 
     orchestrator = PipelineOrchestrator(settings=settings)
     state = asyncio.run(orchestrator.run(args.query, run_id=args.run_id))

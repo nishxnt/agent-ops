@@ -33,3 +33,19 @@ The following deviate from spec §6 Phase 2 and are captured for post-Phase-2 fo
 - `TracerProvider` is set once per process. The CLI initializes tracing before `PipelineOrchestrator.run()`. Tests attach a shared `InMemorySpanExporter` at module import time and clear it between tests.
 - Phoenix export is opt-in via `settings.phoenix_endpoint`. The default empty value means OTel runs without an exporter, so spans are dropped. Users opt in by running `python -m phoenix.server.main serve` separately and setting `PHOENIX_ENDPOINT=http://localhost:6006/v1/traces`.
 - `arize-phoenix` remains a main dependency, pinned to `>=4.0,<5` for this milestone, because the CLI exposes Phoenix export as first-class runtime scaffolding.
+
+## Phase 3 M4 — LangSmith Integration Design
+
+- LangSmith is integrated via OTLP HTTP export, not the langsmith Python SDK. The existing OpenTelemetry spans (one per orchestration node, with run_id attributes) are exported to LangSmith's `/otel/v1/traces` endpoint via a BatchSpanProcessor.
+- Trade-off: this is dramatically simpler than building a separate LangSmith Run-hierarchy via the SDK (parent run + child runs per agent call), but produces flat span traces rather than nested run trees. Sufficient for "traces visible in LangSmith UI"; richer hierarchy is a post-Phase-3 enhancement.
+- LangSmith export is opt-in: requires `LANGSMITH_ENABLED=true` and `LANGSMITH_API_KEY` non-empty. Without both, no LangSmith calls are made.
+- Phoenix and LangSmith are independent. Either, both, or neither can be configured.
+
+Manual LangSmith smoke:
+
+1. Get a LangSmith API key from https://smith.langchain.com.
+2. In `.env`, set `LANGSMITH_ENABLED=true`, `LANGSMITH_API_KEY=ls_...`, and `LANGSMITH_PROJECT=agentops-dev`.
+3. Run `AGENTOPS_MODE=mock uv run agentops-run "What is FAISS?"`.
+4. Check `https://smith.langchain.com/o/.../projects/p/agentops-dev` for a trace with spans `plan`, `research`, `critique`, `write`, and `quality_check`.
+
+This is intentionally manual; automating it would require either mocking LangSmith's API or running CI against the real endpoint.

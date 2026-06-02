@@ -49,8 +49,19 @@ class Settings(BaseSettings):
         default="llama3.1:8b", alias="LOCAL_EVALUATION_MODEL"
     )
     tavily_api_key: str | None = Field(default=None, alias="TAVILY_API_KEY")
-    langsmith_api_key: str | None = Field(default=None, alias="LANGSMITH_API_KEY")
-    langsmith_project: str = Field(default="agentops", alias="LANGSMITH_PROJECT")
+    langsmith_enabled: bool = Field(
+        default=False,
+        validation_alias="LANGSMITH_ENABLED",
+    )
+    langsmith_endpoint: str = Field(
+        default="https://api.smith.langchain.com/otel/v1/traces",
+        validation_alias="LANGSMITH_ENDPOINT",
+    )
+    langsmith_api_key: str = Field(default="", validation_alias="LANGSMITH_API_KEY")
+    langsmith_project: str = Field(
+        default="agentops",
+        validation_alias="LANGSMITH_PROJECT",
+    )
     langsmith_tracing: bool = Field(default=True, alias="LANGSMITH_TRACING")
     phoenix_endpoint: str = Field(
         default="",
