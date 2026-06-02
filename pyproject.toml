@@ -72,6 +72,9 @@ testpaths = ["tests"]
 addopts = "-q"
 pythonpath = ["."]
 asyncio_mode = "auto"
+markers = [
+    "docker: tests that require a local Docker daemon",
+]
 
 [tool.uv.sources]
 rogue-llm = { path = "../rogue-llm", editable = true }

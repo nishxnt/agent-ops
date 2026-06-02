@@ -1,23 +1,49 @@
 """Quality gate backed by RogueLLM evaluation metrics."""
 
-from typing import Any, Literal
+import importlib
+from typing import Any, Literal, Protocol, cast
 
 from pydantic import BaseModel, Field
-from src.evaluation.engine import (  # type: ignore[import-untyped]
-    AttackEvaluationInput,
-    EvaluationMetric,
-    MetricResult,
-)
-from src.evaluation.metrics.faithfulness import (  # type: ignore[import-untyped]
-    FaithfulnessMetric,
-)
-from src.evaluation.metrics.hallucination import (  # type: ignore[import-untyped]
-    HallucinationMetric,
-)
 
 from agentops.agents.critic import VerifiedFact
 from agentops.agents.writer import ResearchReport
 from agentops.config import AgentOpsMode, LLMRole, Settings, get_settings
+
+try:
+    _faithfulness_module = importlib.import_module(
+        "src.evaluation.metrics.faithfulness"
+    )
+    _hallucination_module = importlib.import_module(
+        "src.evaluation.metrics.hallucination"
+    )
+except ModuleNotFoundError:
+    FaithfulnessMetric: Any = None
+    HallucinationMetric: Any = None
+else:
+    FaithfulnessMetric = cast(Any, _faithfulness_module).FaithfulnessMetric
+    HallucinationMetric = cast(Any, _hallucination_module).HallucinationMetric
+
+
+class AttackEvaluationInput(BaseModel):
+    attack_id: str
+    owasp_category: str
+    attack_prompt: str
+    target_response: str
+    retrieved_chunks: list[str]
+
+
+class MetricResult(BaseModel):
+    attack_id: str
+    metric_name: str
+    score: float | None
+    judge_model: str
+    judge_version: str
+    skipped: bool = False
+    evidence: dict[str, Any] = Field(default_factory=dict)
+
+
+class EvaluationMetric(Protocol):
+    async def score(self, attack: AttackEvaluationInput) -> MetricResult: ...
 
 
 class FlaggedClaim(BaseModel):
@@ -78,6 +104,9 @@ class QualityGateAgent:
             faithfulness = faithfulness or _FixedScoreMetric("faithfulness", 0.9)
             hallucination = hallucination or _FixedScoreMetric("hallucination", 0.05)
         else:
+            if FaithfulnessMetric is None or HallucinationMetric is None:
+                msg = "RogueLLM metrics are required outside MOCK mode."
+                raise RuntimeError(msg)
             faithfulness = faithfulness or FaithfulnessMetric(judge_model=eval_model)
             hallucination = hallucination or HallucinationMetric(judge_model=eval_model)
         self.faithfulness = faithfulness

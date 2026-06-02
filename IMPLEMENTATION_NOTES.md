@@ -63,3 +63,12 @@ This is intentionally manual; automating it would require either mocking LangSmi
 - **In-memory run registry.** Single-process scope. Multi-replica deployments would need Redis-backed or DB-backed registry. The k8s Deployment in M3 will have `replicas: 1`, which makes this acceptable.
 - **Health probe semantics.** `/healthz` is process liveness only (always 200 if the process responds). `/readyz` checks orchestrator and audit DB writability; returns 503 (not 200 + `not_ready`) when checks fail, because k8s reads HTTP status code.
 - **Background task safety.** `_execute_pipeline` catches all exceptions and records them on the run record. An unhandled exception in a background task would otherwise be silently lost by asyncio with only a log warning.
+
+## Phase 4 M2 — Container Design
+
+- **Multi-stage build.** Stage 1 (builder, approximately 400MB) resolves dependencies into `/app/.venv` via uv. Stage 2 (runtime, approximately 200MB) copies only the `.venv` plus source. uv itself, curl-for-install, and build toolchain stay out of the runtime image.
+- **Non-root user (uid 1000).** Required by most production k8s security profiles (PodSecurityStandards "restricted"). Adding it now avoids retrofitting in M3.
+- **HEALTHCHECK in Dockerfile.** For `docker run` only; k8s ignores this and uses livenessProbe/readinessProbe configured in the Deployment manifest (M3). Both are intended, and they serve different contexts.
+- **AUDIT_DB_PATH default in image.** Set to `/home/agentops/audit.sqlite`, which the non-root user owns. In k8s, this path will be replaced by a PVC mount; M3 will set `AUDIT_DB_PATH` to a PVC-backed location.
+- **Single-process container.** The API gateway runs the orchestrator in-process. No separate orchestrator container. Splitting them is a post-portfolio enhancement.
+- **Mock image dependency boundary.** The Docker build skips the local editable `rogue-llm` package so the image can be built from this repository alone. MOCK mode uses fixed quality-gate metric stubs; LOCAL/CLOUD container modes would require publishing or vendoring RogueLLM as an installable package.
