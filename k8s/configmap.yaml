@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agentops-config
+  labels:
+    app.kubernetes.io/name: agentops
+data:
+  AGENTOPS_MODE: "mock"
+  BUDGET_TOKEN_LIMIT: "100000"
+  QUALITY_GATE_MAX_REVISIONS: "2"
+  MAX_RECOVERY_ATTEMPTS: "2"
+  RESEARCHER_TIMEOUT_SECS: "30"
+  TRACING_ENABLED: "true"
+  PHOENIX_ENDPOINT: ""
+  LANGSMITH_ENABLED: "false"

@@ -4,7 +4,7 @@ AgentOps is a portfolio project for production-oriented multi-agent research wor
 
 ## Status
 
-Phase 3 complete: full observability stack with a hash-chained audit log (SQLite, tamper-evident), OpenTelemetry spans on every orchestration node, and optional export to Arize Phoenix and LangSmith via OTLP. Phase 4 (Kubernetes deployment) is next.
+Phase 4 complete: CLI, async HTTP API, Docker image, raw Kubernetes manifests, and Helm chart are implemented. The observability stack includes a hash-chained audit log, OpenTelemetry spans, and optional OTLP export to Arize Phoenix and LangSmith.
 
 ## Quick Start
 
@@ -33,3 +33,54 @@ make run-mock
 - LangSmith: `LANGSMITH_ENABLED=true`, `LANGSMITH_API_KEY=...`, optional `LANGSMITH_PROJECT=agentops`
 
 Both backends are independent; either, both, or neither can be enabled. Default is no export; spans are emitted but dropped.
+
+## Deployment
+
+### CLI
+
+```bash
+AGENTOPS_MODE=mock uv run agentops-run "What is FAISS?"
+```
+
+### HTTP API (local)
+
+```bash
+AGENTOPS_MODE=mock uv run agentops-api
+curl -s http://localhost:8000/healthz
+curl -s -X POST http://localhost:8000/run \
+    -H 'content-type: application/json' \
+    -d '{"query":"What is FAISS?"}'
+```
+
+### Docker
+
+```bash
+make docker-build
+make docker-smoke    # builds + curls through HTTP
+```
+
+### Kubernetes (raw manifests, for learning)
+
+```bash
+make k8s-up          # kustomize apply
+make k8s-smoke
+make k8s-down
+```
+
+### Kubernetes (Helm chart, for real)
+
+```bash
+make helm-install
+make k8s-smoke       # same smoke target works against the release
+make helm-uninstall
+```
+
+### What's in the chart
+
+- Single-replica API gateway Deployment with the orchestrator running in-process
+- 1Gi RWO PersistentVolumeClaim for the audit DB
+- NodePort 30080 in dev / ClusterIP in production
+- Non-root container (uid 1000), liveness and readiness probes
+- ConfigMap for pipeline tuning; Secret (optional) for LLM API keys
+
+The Helm chart packages the raw manifests from `k8s/` (kept for educational reference) with environment-aware values. `values.yaml` is the production default; `values.dev.yaml` overrides for minikube.

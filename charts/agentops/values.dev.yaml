@@ -1,2 +1,24 @@
-global:
-  mode: "local"
+# Development overrides for minikube. Use with:
+#   helm upgrade --install agentops ./charts/agentops -f charts/agentops/values.dev.yaml
+image:
+  tag: "dev"
+  pullPolicy: Never # use minikube-built image
+
+service:
+  type: NodePort
+  nodePort: 30080
+
+resources:
+  requests:
+    memory: 256Mi
+    cpu: 250m
+  limits:
+    memory: 512Mi
+    cpu: 500m
+
+audit:
+  persistence:
+    size: 1Gi # smaller PVC for local dev
+
+secrets:
+  create: true # install placeholder secret in dev

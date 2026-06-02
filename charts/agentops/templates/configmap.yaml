@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "agentops.fullname" . }}-config
+  labels:
+    {{- include "agentops.labels" . | nindent 4 }}
+data:
+  AGENTOPS_MODE: {{ .Values.config.agentopsMode | quote }}
+  BUDGET_TOKEN_LIMIT: {{ .Values.config.budgetTokenLimit | quote }}
+  QUALITY_GATE_MAX_REVISIONS: {{ .Values.config.qualityGateMaxRevisions | quote }}
+  MAX_RECOVERY_ATTEMPTS: {{ .Values.config.maxRecoveryAttempts | quote }}
+  RESEARCHER_TIMEOUT_SECS: {{ .Values.config.researcherTimeoutSecs | quote }}
+  TRACING_ENABLED: {{ .Values.config.tracingEnabled | quote }}
+  PHOENIX_ENDPOINT: {{ .Values.config.phoenixEndpoint | quote }}
+  LANGSMITH_ENABLED: {{ .Values.config.langsmithEnabled | quote }}

@@ -1,23 +1,34 @@
 """Quality gate backed by RogueLLM evaluation metrics."""
 
-from typing import Any, Literal
+from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, Field
-from src.evaluation.engine import (  # type: ignore[import-untyped]
-    AttackEvaluationInput,
-    EvaluationMetric,
-    MetricResult,
-)
-from src.evaluation.metrics.faithfulness import (  # type: ignore[import-untyped]
-    FaithfulnessMetric,
-)
-from src.evaluation.metrics.hallucination import (  # type: ignore[import-untyped]
-    HallucinationMetric,
-)
 
 from agentops.agents.critic import VerifiedFact
 from agentops.agents.writer import ResearchReport
 from agentops.config import AgentOpsMode, LLMRole, Settings, get_settings
+
+
+class AttackEvaluationInput(BaseModel):
+    attack_id: str
+    owasp_category: str
+    attack_prompt: str
+    target_response: str
+    retrieved_chunks: list[str]
+
+
+class MetricResult(BaseModel):
+    attack_id: str
+    metric_name: str
+    score: float | None
+    judge_model: str
+    judge_version: str
+    skipped: bool = False
+    evidence: dict[str, Any] = Field(default_factory=dict)
+
+
+class EvaluationMetric(Protocol):
+    async def score(self, attack: AttackEvaluationInput) -> MetricResult: ...
 
 
 class FlaggedClaim(BaseModel):
@@ -73,13 +84,11 @@ class QualityGateAgent:
         settings: Settings | None = None,
     ) -> None:
         self.settings = settings or get_settings()
-        eval_model = self.settings.model_for(LLMRole.EVALUATION)
-        if self.settings.mode == AgentOpsMode.MOCK:
-            faithfulness = faithfulness or _FixedScoreMetric("faithfulness", 0.9)
-            hallucination = hallucination or _FixedScoreMetric("hallucination", 0.05)
-        else:
-            faithfulness = faithfulness or FaithfulnessMetric(judge_model=eval_model)
-            hallucination = hallucination or HallucinationMetric(judge_model=eval_model)
+        faithfulness, hallucination = _resolve_metrics(
+            settings=self.settings,
+            faithfulness=faithfulness,
+            hallucination=hallucination,
+        )
         self.faithfulness = faithfulness
         self.hallucination = hallucination
         self.max_revisions = self.settings.quality_gate_max_revisions
@@ -132,6 +141,37 @@ class QualityGateAgent:
             flagged_claims=flagged_claims,
             revision_instruction=revision_instruction,
         )
+
+
+def _resolve_metrics(
+    *,
+    settings: Settings,
+    faithfulness: EvaluationMetric | None,
+    hallucination: EvaluationMetric | None,
+) -> tuple[EvaluationMetric, EvaluationMetric]:
+    if settings.mode == AgentOpsMode.MOCK:
+        return (
+            faithfulness or _FixedScoreMetric("faithfulness", 0.9),
+            hallucination or _FixedScoreMetric("hallucination", 0.05),
+        )
+
+    if faithfulness is not None and hallucination is not None:
+        return faithfulness, hallucination
+
+    # Lazy imports: RogueLLM is required only outside MOCK mode. This keeps the
+    # mock API container importable without the local editable dependency.
+    from src.evaluation.metrics.faithfulness import (  # type: ignore[import-untyped]
+        FaithfulnessMetric,
+    )
+    from src.evaluation.metrics.hallucination import (  # type: ignore[import-untyped]
+        HallucinationMetric,
+    )
+
+    eval_model = settings.model_for(LLMRole.EVALUATION)
+    return (
+        faithfulness or FaithfulnessMetric(judge_model=eval_model),
+        hallucination or HallucinationMetric(judge_model=eval_model),
+    )
 
 
 def _evaluation_inputs(

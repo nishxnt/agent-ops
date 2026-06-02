@@ -56,3 +56,43 @@ This is intentionally manual; automating it would require either mocking LangSmi
 - **BUDGET_HALTED / RECOVERED audit entries (M2).** All M2 audits have `status="SUCCESS"`. Policy-decision entries, such as the orchestrator writing rows directly to mark `BUDGET_HALTED` at the moment of halt or `RECOVERED` after a recovery cycle succeeds, are a follow-up.
 - **LangSmith Run hierarchy (M4).** Current integration exports flat OTel spans via OTLP. A richer nested-run hierarchy (parent run plus child runs per agent call) would require the langsmith Python SDK and parallel orchestration code. Trade-off chosen: keep the OTel surface unified. Revisit if the LangSmith UX is insufficient.
 - **Phoenix/LangSmith screenshots (M5).** Manual procedure documented in README; live captures are part of Phase 6 polish.
+
+## Phase 4 M1 — FastAPI Gateway Design
+
+- **Async API model.** `POST /run` returns 202 immediately with a `run_id`. Pipeline executes in an `asyncio.Task`. `GET /status/{run_id}` polls completion. Sync API (block-and-return) was rejected because 10+ second blocking endpoints don't survive load balancer timeouts in real deployments.
+- **In-memory run registry.** Single-process scope. Multi-replica deployments would need Redis-backed or DB-backed registry. The k8s Deployment in M3 will have `replicas: 1`, which makes this acceptable.
+- **Health probe semantics.** `/healthz` is process liveness only (always 200 if the process responds). `/readyz` checks orchestrator and audit DB writability; returns 503 (not 200 + `not_ready`) when checks fail, because k8s reads HTTP status code.
+- **Background task safety.** `_execute_pipeline` catches all exceptions and records them on the run record. An unhandled exception in a background task would otherwise be silently lost by asyncio with only a log warning.
+
+## Phase 4 M2 — Container Design
+
+- **Multi-stage build.** Stage 1 (builder, approximately 400MB) resolves dependencies into `/app/.venv` via uv. Stage 2 (runtime, approximately 200MB) copies only the `.venv` plus source. uv itself, curl-for-install, and build toolchain stay out of the runtime image.
+- **Non-root user (uid 1000).** Required by most production k8s security profiles (PodSecurityStandards "restricted"). Adding it now avoids retrofitting in M3.
+- **HEALTHCHECK in Dockerfile.** For `docker run` only; k8s ignores this and uses livenessProbe/readinessProbe configured in the Deployment manifest (M3). Both are intended, and they serve different contexts.
+- **AUDIT_DB_PATH default in image.** Set to `/home/agentops/audit.sqlite`, which the non-root user owns. In k8s, this path will be replaced by a PVC mount; M3 will set `AUDIT_DB_PATH` to a PVC-backed location.
+- **Single-process container.** The API gateway runs the orchestrator in-process. No separate orchestrator container. Splitting them is a post-portfolio enhancement.
+- **Mock image dependency boundary.** The Docker build skips the local editable `rogue-llm` package so the image can be built from this repository alone. MOCK mode uses fixed quality-gate metric stubs; LOCAL/CLOUD container modes would require publishing or vendoring RogueLLM as an installable package.
+
+## Phase 4 M3 — Raw Kubernetes Manifests Design
+
+- **Single-replica Deployment.** The FastAPI gateway keeps run state in an in-memory `RunRegistry`, so multiple replicas would split `/run` submission and `/status/{run_id}` polling across independent processes. Horizontal scaling requires a Redis-backed or DB-backed registry.
+- **Recreate rollout strategy.** The audit log uses a ReadWriteOnce PVC. `RollingUpdate` would briefly try to run two Pods mounting the same volume and can leave the replacement Pod pending. `Recreate` terminates the old Pod before the new one mounts the PVC.
+- **SecurityContext matches Dockerfile.** The Pod runs as uid/gid 1000 with `runAsNonRoot=true` and `fsGroup=1000`, matching the container user and ensuring the mounted PVC is writable by the non-root process.
+- **Minikube exposure and image loading.** Service type is NodePort on 30080 for simple local access without a load balancer or Ingress controller. `imagePullPolicy=Never` tells minikube to use the image built into its local Docker daemon via `eval $(minikube docker-env)`.
+- **Resource sizing.** Requests are `256Mi` memory and `250m` CPU; limits are `512Mi` and `500m`. This is enough for the mock-mode API gateway while keeping minikube resource use bounded.
+
+## Phase 4 M4 — Helm Chart Design
+
+- **Meaningful values only.** The chart parameterizes values that naturally change between environments: image repository/tag/pullPolicy, replica count, service type/port/nodePort, resources, budget/runtime config, audit storage size/class/access mode, and optional placeholder secret creation.
+- **Deliberately fixed values.** The securityContext is not parameterized because non-root uid/gid 1000 is a security baseline, not a tuning knob. Probe paths (`/healthz`, `/readyz`) are API contracts. The internal audit mount layout and standard label structure are fixed to avoid accidental drift.
+- **Chart version versus app version.** `Chart.yaml` uses `version: 0.1.0` for the chart package and `appVersion: "0.5.0"` for the application. The image tag defaults to `appVersion` when `.Values.image.tag` is empty, but dev overrides it to `dev`.
+- **Raw manifests remain.** The `k8s/` directory is kept alongside the chart as the educational raw-primitives artifact. The Helm chart is the parameterized deployment artifact, not a reason to delete the M3 manifests.
+- **Ephemeral CI support.** `audit.persistence.enabled=false` omits both the PVC and Deployment volume mount, which allows chart rendering and lightweight CI smoke paths without provisioning storage.
+
+## Phase 4 Wrap-Up — Deferred Items
+
+- **Single-replica deployment (M3, M4).** The in-memory `RunRegistry` from M1 does not survive across replicas. Horizontal scaling requires a Redis-backed or DB-backed registry. Documented as a known limitation, not a bug.
+- **In-cluster Phoenix sidecar (M3, M4).** Phoenix is an opt-in external endpoint via `PHOENIX_ENDPOINT`; the Helm chart does not bring up Phoenix in-cluster. Adding a Phoenix Deployment and Service would be a Phase 6+ enhancement.
+- **Ingress / TLS (M3, M4).** Only NodePort exposure in dev. Real Ingress with cert-manager or Let's Encrypt is a deployment-target-specific concern, out of scope for the portfolio Helm chart.
+- **Helm chart museum / registry publishing (M4).** Chart is consumed by `helm install ./charts/agentops` locally. Publishing to a chart repo (OCI or Chart Museum) would be a release-engineering follow-up.
+- **k8s/ raw manifests retained (M4).** The raw manifests in `k8s/` are kept alongside the Helm chart in `charts/agentops/`. They are not a parallel deployment path; they are an educational artifact showing each k8s primitive in isolation. The chart is the canonical deployment surface.
