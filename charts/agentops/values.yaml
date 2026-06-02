@@ -1,21 +1,55 @@
-global:
-  image:
-    tag: "latest"
-  mode: "cloud" # mock | local | cloud
-  budget:
-    defaultTokenLimit: 50000
-apiGateway:
-  replicaCount: 1
-  service:
-    type: NodePort
-    nodePort: 30080
-orchestrator:
-  replicaCount: 1
-  agent:
-    maxResearchers: 3
-    researcherTimeoutSecs: 30
-    maxRevisions: 2
-phoenix:
-  enabled: true
+# Default values for agentops. Override via -f values.dev.yaml or --set.
+
+image:
+  repository: agentops-api
+  tag: "" # empty = use Chart.AppVersion
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 8000
+  nodePort: null # only honored when type=NodePort
+
+resources:
+  requests:
+    memory: 512Mi
+    cpu: 500m
+  limits:
+    memory: 1Gi
+    cpu: 1000m
+
+audit:
   persistence:
-    size: 1Gi
+    enabled: true
+    size: 5Gi
+    storageClass: "" # empty = cluster default
+    accessMode: ReadWriteOnce
+
+config:
+  agentopsMode: "mock"
+  budgetTokenLimit: "100000"
+  qualityGateMaxRevisions: "2"
+  maxRecoveryAttempts: "2"
+  researcherTimeoutSecs: "30"
+  tracingEnabled: "true"
+  phoenixEndpoint: ""
+  langsmithEnabled: "false"
+
+# Secrets are populated via `kubectl create secret`, not this file.
+# See README for the recommended workflow.
+secrets:
+  create: false # whether to install the placeholder secret
+  groqApiKey: ""
+  langsmithApiKey: ""
+
+probes:
+  liveness:
+    initialDelaySeconds: 10
+    periodSeconds: 30
+    timeoutSeconds: 5
+  readiness:
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5

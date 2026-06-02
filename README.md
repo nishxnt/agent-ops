@@ -43,3 +43,14 @@ make k8s-down    # remove all resources
 ```
 
 Architecture: one API gateway Pod with the orchestrator running in-process. Audit DB on a 1Gi RWO PersistentVolumeClaim. Exposed via NodePort 30080. Single replica because the run registry is in-memory; horizontal scaling is a known follow-up.
+
+### Helm Deployment
+
+```bash
+make helm-lint        # validate chart
+make helm-template    # render manifests locally
+make helm-install     # build image into minikube, helm install
+make helm-uninstall   # remove the release
+```
+
+The Helm chart packages the raw manifests from `k8s/` (kept for educational reference) with environment-aware values. `values.yaml` is the production default; `values.dev.yaml` overrides for minikube.

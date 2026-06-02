@@ -1,5 +1,11 @@
 apiVersion: v2
 name: agentops
-description: Multi-agent research pipeline with production infrastructure
+description: AgentOps multi-agent research pipeline
+type: application
 version: 0.1.0
-appVersion: "0.1.0"
+appVersion: "0.5.0"
+home: https://github.com/nishxnt/agent-ops
+sources:
+  - https://github.com/nishxnt/agent-ops
+maintainers:
+  - name: Nishant Gupta

@@ -80,3 +80,11 @@ This is intentionally manual; automating it would require either mocking LangSmi
 - **SecurityContext matches Dockerfile.** The Pod runs as uid/gid 1000 with `runAsNonRoot=true` and `fsGroup=1000`, matching the container user and ensuring the mounted PVC is writable by the non-root process.
 - **Minikube exposure and image loading.** Service type is NodePort on 30080 for simple local access without a load balancer or Ingress controller. `imagePullPolicy=Never` tells minikube to use the image built into its local Docker daemon via `eval $(minikube docker-env)`.
 - **Resource sizing.** Requests are `256Mi` memory and `250m` CPU; limits are `512Mi` and `500m`. This is enough for the mock-mode API gateway while keeping minikube resource use bounded.
+
+## Phase 4 M4 — Helm Chart Design
+
+- **Meaningful values only.** The chart parameterizes values that naturally change between environments: image repository/tag/pullPolicy, replica count, service type/port/nodePort, resources, budget/runtime config, audit storage size/class/access mode, and optional placeholder secret creation.
+- **Deliberately fixed values.** The securityContext is not parameterized because non-root uid/gid 1000 is a security baseline, not a tuning knob. Probe paths (`/healthz`, `/readyz`) are API contracts. The internal audit mount layout and standard label structure are fixed to avoid accidental drift.
+- **Chart version versus app version.** `Chart.yaml` uses `version: 0.1.0` for the chart package and `appVersion: "0.5.0"` for the application. The image tag defaults to `appVersion` when `.Values.image.tag` is empty, but dev overrides it to `dev`.
+- **Raw manifests remain.** The `k8s/` directory is kept alongside the chart as the educational raw-primitives artifact. The Helm chart is the parameterized deployment artifact, not a reason to delete the M3 manifests.
+- **Ephemeral CI support.** `audit.persistence.enabled=false` omits both the PVC and Deployment volume mount, which allows chart rendering and lightweight CI smoke paths without provisioning storage.

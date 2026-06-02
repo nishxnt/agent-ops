@@ -1,6 +1,0 @@
-global:
-  mode: "cloud"
-  budget:
-    defaultTokenLimit: 5000
-phoenix:
-  enabled: false

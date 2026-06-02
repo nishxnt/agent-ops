@@ -1,4 +1,4 @@
-.PHONY: install format test lint smoke-infra run-mock run-local serve docker-build docker-run docker-smoke k8s-up k8s-smoke k8s-down deploy teardown
+.PHONY: install format test lint smoke-infra run-mock run-local serve docker-build docker-run docker-smoke k8s-up k8s-smoke k8s-down helm-lint helm-template helm-install helm-uninstall deploy teardown
 
 install:
 	uv sync
@@ -77,7 +77,8 @@ k8s-up:
 	@echo "Service URL: $$(minikube service agentops-api-gateway --url)"
 
 k8s-smoke:
-	@url=$$(minikube service agentops-api-gateway --url); \
+	@service=$$(kubectl get service agentops >/dev/null 2>&1 && echo agentops || echo agentops-api-gateway); \
+	url=$$(minikube service $$service --url); \
 	echo "Healthz:"; curl -s $$url/healthz; echo; \
 	echo "Readyz:"; curl -s $$url/readyz; echo; \
 	echo "POST /run:"; \
@@ -98,6 +99,25 @@ k8s-smoke:
 
 k8s-down:
 	kubectl delete -k k8s/ || true
+
+helm-lint:
+	helm lint ./charts/agentops -f charts/agentops/values.dev.yaml
+
+helm-template:
+	helm template agentops ./charts/agentops -f charts/agentops/values.dev.yaml
+
+helm-install:
+	minikube status > /dev/null 2>&1 || minikube start --cpus=2 --memory=4g
+	eval $$(minikube docker-env) && \
+		docker build -f docker/api.Dockerfile -t agentops-api:dev .
+	helm upgrade --install agentops ./charts/agentops \
+		-f charts/agentops/values.dev.yaml
+	kubectl rollout status deployment/agentops --timeout=120s
+	@echo ""
+	@echo "Service URL: $$(minikube service agentops --url)"
+
+helm-uninstall:
+	helm uninstall agentops || true
 
 deploy:
 	@echo "Kubernetes deployment is introduced after Phase 0."
