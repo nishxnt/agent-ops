@@ -56,3 +56,10 @@ This is intentionally manual; automating it would require either mocking LangSmi
 - **BUDGET_HALTED / RECOVERED audit entries (M2).** All M2 audits have `status="SUCCESS"`. Policy-decision entries, such as the orchestrator writing rows directly to mark `BUDGET_HALTED` at the moment of halt or `RECOVERED` after a recovery cycle succeeds, are a follow-up.
 - **LangSmith Run hierarchy (M4).** Current integration exports flat OTel spans via OTLP. A richer nested-run hierarchy (parent run plus child runs per agent call) would require the langsmith Python SDK and parallel orchestration code. Trade-off chosen: keep the OTel surface unified. Revisit if the LangSmith UX is insufficient.
 - **Phoenix/LangSmith screenshots (M5).** Manual procedure documented in README; live captures are part of Phase 6 polish.
+
+## Phase 4 M1 — FastAPI Gateway Design
+
+- **Async API model.** `POST /run` returns 202 immediately with a `run_id`. Pipeline executes in an `asyncio.Task`. `GET /status/{run_id}` polls completion. Sync API (block-and-return) was rejected because 10+ second blocking endpoints don't survive load balancer timeouts in real deployments.
+- **In-memory run registry.** Single-process scope. Multi-replica deployments would need Redis-backed or DB-backed registry. The k8s Deployment in M3 will have `replicas: 1`, which makes this acceptable.
+- **Health probe semantics.** `/healthz` is process liveness only (always 200 if the process responds). `/readyz` checks orchestrator and audit DB writability; returns 503 (not 200 + `not_ready`) when checks fail, because k8s reads HTTP status code.
+- **Background task safety.** `_execute_pipeline` catches all exceptions and records them on the run record. An unhandled exception in a background task would otherwise be silently lost by asyncio with only a log warning.

@@ -1,4 +1,4 @@
-.PHONY: install format test lint smoke-infra run-mock run-local deploy teardown
+.PHONY: install format test lint smoke-infra run-mock run-local serve deploy teardown
 
 install:
 	uv sync
@@ -23,6 +23,9 @@ run-mock:
 
 run-local:
 	AGENTOPS_MODE=local uv run agentops-run "What is FAISS?"
+
+serve:
+	AGENTOPS_MODE=mock uv run agentops-api
 
 deploy:
 	@echo "Kubernetes deployment is introduced after Phase 0."
