@@ -2,6 +2,8 @@
 
 AgentOps is a portfolio project for production-oriented multi-agent research workflows. The system will grow into a LangGraph-based research and report generation pipeline with deterministic mock mode, local Ollama mode, cloud mode, budget enforcement, observability, and tamper-evident audit logging.
 
+![CI](https://github.com/nishxnt/agent-ops/actions/workflows/ci.yml/badge.svg)
+
 ## Status
 
 Phase 4 complete: CLI, async HTTP API, Docker image, raw Kubernetes manifests, and Helm chart are implemented. The observability stack includes a hash-chained audit log, OpenTelemetry spans, and optional OTLP export to Arize Phoenix and LangSmith.

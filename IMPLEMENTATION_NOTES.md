@@ -96,3 +96,13 @@ This is intentionally manual; automating it would require either mocking LangSmi
 - **Ingress / TLS (M3, M4).** Only NodePort exposure in dev. Real Ingress with cert-manager or Let's Encrypt is a deployment-target-specific concern, out of scope for the portfolio Helm chart.
 - **Helm chart museum / registry publishing (M4).** Chart is consumed by `helm install ./charts/agentops` locally. Publishing to a chart repo (OCI or Chart Museum) would be a release-engineering follow-up.
 - **k8s/ raw manifests retained (M4).** The raw manifests in `k8s/` are kept alongside the Helm chart in `charts/agentops/`. They are not a parallel deployment path; they are an educational artifact showing each k8s primitive in isolation. The chart is the canonical deployment surface.
+
+## Phase 5 M1 — GitHub Actions CI Design
+
+- **Single sequential job.** The workflow uses one `lint-test` job with lint before tests. Lint failures should be fixed first because they are usually fast and mechanical; running tests after lint keeps the first failure signal focused.
+- **Sibling repository checkout.** `agent-ops` is checked out to `./agent-ops` and `rogue-llm` is checked out to `./rogue-llm`. This preserves the `../rogue-llm` relative path declared in `pyproject.toml`. Checking out `agent-ops` at the workspace root would make `../rogue-llm` point above `$GITHUB_WORKSPACE`.
+- **Public RogueLLM dependency.** CI clones `nishxnt/rogue-llm` through the public GitHub repository, not a private mirror or token-authenticated substitute, so the workflow reflects how a fresh external checkout resolves the sibling dependency.
+- **Frozen uv sync with lockfile cache.** CI runs `uv sync --frozen` so drift between `pyproject.toml` and `uv.lock` fails immediately. The uv cache key includes `uv.lock`, which reuses dependency resolves while the lockfile is unchanged and invalidates the cache when dependencies change.
+- **Deployment-tooling tests deferred.** The M1 workflow excludes tests marked `docker`, `k8s`, or `helm` with `-m "not docker and not k8s and not helm"`. Those tests are covered by dedicated M2/M3 workflows because they require heavier runner setup and should not run on every commit.
+- **Push and PR triggers.** Pushes to every branch run CI so feature branches get status before a PR opens. Pull requests to `dev` or `main` also run CI against the merge candidate.
+- **Concurrency cancellation.** The concurrency group uses the workflow name and Git ref, with `cancel-in-progress: true`, so newer commits cancel stale runs on the same branch instead of spending minutes on obsolete code.

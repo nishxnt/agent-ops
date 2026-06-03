@@ -1,0 +1,57 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - dev
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-test:
+    name: lint + test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout agent-ops
+        uses: actions/checkout@v4
+        with:
+          path: agent-ops
+
+      - name: Checkout rogue-llm (sibling repo)
+        uses: actions/checkout@v4
+        with:
+          repository: nishxnt/rogue-llm
+          path: rogue-llm
+          ref: main
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: agent-ops/uv.lock
+
+      - name: Sync dependencies
+        working-directory: agent-ops
+        run: uv sync --frozen
+
+      - name: Run lint
+        working-directory: agent-ops
+        run: make lint
+
+      - name: Run tests (excluding deployment-tooling tests)
+        working-directory: agent-ops
+        run: uv run pytest -v -m "not docker and not k8s and not helm"
+        env:
+          AGENTOPS_MODE: mock
