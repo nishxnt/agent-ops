@@ -106,3 +106,12 @@ This is intentionally manual; automating it would require either mocking LangSmi
 - **Deployment-tooling tests deferred.** The M1 workflow excludes tests marked `docker`, `k8s`, or `helm` with `-m "not docker and not k8s and not helm"`. Those tests are covered by dedicated M2/M3 workflows because they require heavier runner setup and should not run on every commit.
 - **Push and PR triggers.** Pushes to every branch run CI so feature branches get status before a PR opens. Pull requests to `dev` or `main` also run CI against the merge candidate.
 - **Concurrency cancellation.** The concurrency group uses the workflow name and Git ref, with `cancel-in-progress: true`, so newer commits cancel stale runs on the same branch instead of spending minutes on obsolete code.
+
+## Phase 5 M2 — Docker Smoke Workflow Design
+
+- **Separate workflow.** `docker-smoke.yml` is intentionally separate from `ci.yml`. Lint + test runs on every push, while Docker build + container smoke is slower and runs only on pull requests to `dev`/`main` plus manual `workflow_dispatch`.
+- **Local image validation only.** The workflow uses `docker/build-push-action` with `load: true` so the built image is loaded into the runner's Docker daemon for pytest. It does not push to GHCR or any registry in M2.
+- **BuildKit GitHub Actions cache.** `cache-from: type=gha` and `cache-to: type=gha,mode=max` preserve build layers between runs when the Dockerfile and dependency inputs are unchanged. `mode=max` keeps all layers, not just the final image.
+- **One smoke assertion path.** CI runs `uv run pytest tests/integration/test_docker_smoke.py -v`, the same assertion logic used by the local Docker smoke path. The `built_image` fixture now reuses `agentops-api:pytest` when the workflow pre-builds it, and only builds from scratch when the tag is absent locally.
+- **Mock API image boundary.** The Docker image installs the minimal dependency set needed by the mock API path and excludes heavyweight non-mock evaluation/search packages (`sentence-transformers`, `torch`, RogueLLM metrics, Ragas, Deepeval, Phoenix, FAISS). Mock mode uses deterministic local stubs and copied test fixtures, so the container smoke validates the production API surface without turning PR validation into a multi-GB ML image build.
+- **Image size diagnostics.** The final image-size step uses `if: always()` so failed smoke runs still report the produced image size, which helps distinguish runtime failures from unexpectedly bloated builds.
