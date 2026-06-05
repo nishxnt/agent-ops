@@ -4,6 +4,7 @@ AgentOps is a portfolio project for production-oriented multi-agent research wor
 
 ![CI](https://github.com/nishxnt/agent-ops/actions/workflows/ci.yml/badge.svg)
 ![Docker](https://github.com/nishxnt/agent-ops/actions/workflows/docker-smoke.yml/badge.svg)
+![k8s](https://github.com/nishxnt/agent-ops/actions/workflows/k8s-smoke.yml/badge.svg)
 
 ## Status
 

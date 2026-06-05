@@ -176,3 +176,12 @@ Mock mode is a first-class deployment mode, so modules imported by the API start
 
 - **H.1 Current state.** `make k8s-up` builds `agentops-api:dev`; `k8s/api-gateway/deployment.yaml` references `agentops-api:dev` with `imagePullPolicy: Never`. **Decision.** The raw manifest image tag matches the Makefile target. **Action taken.** No Makefile or raw image change.
 - **H.2 Current state.** `make helm-install` builds `agentops-api:dev`; `charts/agentops/values.dev.yaml` sets `image.tag: "dev"` with repository `agentops-api`. **Decision.** The Helm dev image tag matches the Makefile target. **Action taken.** No Makefile or dev values image change.
+
+## Phase 5 M3 — k8s smoke workflow design
+
+- **Helm is the CI deployment surface.** The workflow deploys with `helm upgrade --install agentops ./charts/agentops -f charts/agentops/values.dev.yaml --wait --timeout 3m`. Raw manifests under `k8s/` remain educational artifacts; CI exercises the canonical chart.
+- **Minikube-local image build.** CI builds `agentops-api:dev` after `eval "$(minikube docker-env)"`, so the image is present in minikube's Docker daemon without pushing to a registry. `charts/agentops/values.dev.yaml` already sets `image.pullPolicy: Never`, so no workflow override is needed.
+- **Mock-mode dependency boundary.** The k8s smoke uses the same minimal mock-mode image as M2. It does not install RogueLLM-dependent evaluation libraries, FAISS, `torch`, or `sentence-transformers`; the Helm deployment is validating the mock API surface used for PR checks and portfolio demos.
+- **Inline smoke assertions.** The workflow shell script calls `/healthz`, `/readyz`, submits one `POST /run` query for "What is FAISS?", and polls `/status/{run_id}` for up to 60 seconds. Any final status other than `COMPLETED` fails the job.
+- **Diagnostics before speculation.** On failure, the workflow dumps Pods, matching Pod descriptions, container logs, and the latest events. This keeps failed k8s runs debuggable from the Actions log before any code or chart change is made.
+- **Tooling pins.** `medyagh/setup-minikube@latest` is accepted for portfolio scope, while `kubernetes-version: stable` is explicit. Helm is installed with `azure/setup-helm@v4` and pinned to Helm `v3.21.0` because the chart has been validated against Helm 3 behavior; exact minikube and Kubernetes version pins are deferred to M5 polish if needed. The first M3 run showed that `version: v3.x` is interpreted as a literal download tag by `azure/setup-helm`, so the workflow uses a concrete Helm 3 release.
