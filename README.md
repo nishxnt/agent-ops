@@ -8,7 +8,7 @@ AgentOps is a portfolio project for production-oriented multi-agent research wor
 
 ## Status
 
-Phase 4 complete (Phase 5 in progress: CI workflows live; k8s smoke in CI is the next milestone): CLI, async HTTP API, Docker image, raw Kubernetes manifests, and Helm chart are implemented. The observability stack includes a hash-chained audit log, OpenTelemetry spans, and optional OTLP export to Arize Phoenix and LangSmith.
+Phase 5 complete: GitHub Actions CI runs lint + test on every push, builds and smoke-tests the Docker image on every PR, and provisions a minikube cluster to deploy the Helm chart and run one end-to-end mock pipeline query on every PR. Phase 4 work (CLI, async HTTP API, Docker image, raw Kubernetes manifests, Helm chart) is unchanged. The observability stack — hash-chained audit log, OpenTelemetry spans, and optional OTLP export to Arize Phoenix and LangSmith — remains intact.
 
 ## Quick Start
 

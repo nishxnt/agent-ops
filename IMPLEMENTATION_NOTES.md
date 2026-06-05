@@ -185,3 +185,13 @@ Mock mode is a first-class deployment mode, so modules imported by the API start
 - **Inline smoke assertions.** The workflow shell script calls `/healthz`, `/readyz`, submits one `POST /run` query for "What is FAISS?", and polls `/status/{run_id}` for up to 60 seconds. Any final status other than `COMPLETED` fails the job.
 - **Diagnostics before speculation.** On failure, the workflow dumps Pods, matching Pod descriptions, container logs, and the latest events. This keeps failed k8s runs debuggable from the Actions log before any code or chart change is made.
 - **Tooling pins.** `medyagh/setup-minikube@latest` is accepted for portfolio scope, while `kubernetes-version: stable` is explicit. Helm is installed with `azure/setup-helm@v4` and pinned to Helm `v3.21.0` because the chart has been validated against Helm 3 behavior; exact minikube and Kubernetes version pins are deferred to M5 polish if needed. The first M3 run showed that `version: v3.x` is interpreted as a literal download tag by `azure/setup-helm`, so the workflow uses a concrete Helm 3 release.
+
+## Phase 5 — Wrap
+
+Phase 5 closes O8: CI/CD with a Kubernetes smoke test.
+
+Three GitHub Actions workflows are live with separate scopes. `ci.yml` runs lint + test on every push and PR, excluding deployment-tooling tests. `docker-smoke.yml` builds the production image and runs container smoke tests on PRs to `dev` and `main`. `k8s-smoke.yml` provisions minikube, deploys through Helm, and runs one end-to-end mock pipeline query on PRs to `dev` and `main`.
+
+M4 was originally scoped as "PR comment with smoke results" and was intentionally not implemented. The existing CI status checks, per-step logs, and image-size step output already surface every signal a PR comment would carry. On a single-maintainer portfolio repository, a structured PR comment adds noise without adding information. If this project later grows to multi-contributor or external review, a `$GITHUB_STEP_SUMMARY` markdown panel is the preferred pattern because it is less noisy than PR comments.
+
+The floating `medyagh/setup-minikube@latest` action and `kubernetes-version: stable` input are deliberate portfolio-scope choices that trade reproducibility for maintenance ease; production CI would pin SHAs. The Phase 5 M3 Helm tag bug is also captured here as a tooling quirk worth pinning around: `azure/setup-helm@v4` interpreted `v3.x` as a literal release tag, so Helm is now pinned to `v3.21.0`.
