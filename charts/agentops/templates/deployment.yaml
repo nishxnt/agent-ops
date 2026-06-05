@@ -33,7 +33,7 @@ spec:
               containerPort: 8000
           env:
             - name: AUDIT_DB_PATH
-              value: /var/lib/agentops/audit.sqlite
+              value: {{ .Values.audit.dbPath | quote }}
           envFrom:
             - configMapRef:
                 name: {{ include "agentops.fullname" . }}-config
@@ -44,7 +44,7 @@ spec:
           {{- if .Values.audit.persistence.enabled }}
           volumeMounts:
             - name: audit-log
-              mountPath: /var/lib/agentops
+              mountPath: {{ .Values.audit.mountPath | quote }}
           {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}

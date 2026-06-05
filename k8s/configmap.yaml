@@ -6,6 +6,8 @@ metadata:
     app.kubernetes.io/name: agentops
 data:
   AGENTOPS_MODE: "mock"
+  AGENTOPS_SEARCH_CACHE_DIR: "/home/agentops/.agentops-cache/search"
+  AUDIT_DB_PATH: "/var/lib/agentops/audit.sqlite"
   BUDGET_TOKEN_LIMIT: "100000"
   QUALITY_GATE_MAX_REVISIONS: "2"
   MAX_RECOVERY_ATTEMPTS: "2"

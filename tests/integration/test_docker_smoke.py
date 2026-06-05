@@ -18,6 +18,16 @@ HOST_PORT = 8002
 @pytest.fixture(scope="module")
 def built_image() -> str:
     result = subprocess.run(
+        ["docker", "image", "inspect", IMAGE_TAG],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode == 0:
+        yield IMAGE_TAG
+        return
+
+    result = subprocess.run(
         [
             "docker",
             "build",
@@ -45,7 +55,6 @@ def running_container(built_image: str) -> str:
         [
             "docker",
             "run",
-            "--rm",
             "-d",
             "-p",
             f"{HOST_PORT}:8000",

@@ -9,7 +9,7 @@ from typing import Protocol, cast
 from pydantic import BaseModel, Field
 
 from agentops.agents.researcher import ResearchFinding, SourceCitation
-from agentops.config import LLMRole
+from agentops.config import AgentOpsMode, LLMRole, get_settings
 from agentops.llm.client import LLMClient, get_llm_client
 from agentops.llm.models import LLMRequest
 
@@ -176,9 +176,31 @@ class CriticAgent:
 
 
 def _default_embedder() -> Embedder:
+    if get_settings().mode == AgentOpsMode.MOCK:
+        return _MockEmbedder()
+
     from sentence_transformers import SentenceTransformer
 
     return cast(Embedder, SentenceTransformer("all-MiniLM-L6-v2"))
+
+
+class _MockEmbedder:
+    """Small deterministic embedder for offline mock-mode execution."""
+
+    def encode(self, sentences: list[str]) -> list[list[float]]:
+        return [_token_vector(sentence) for sentence in sentences]
+
+
+def _token_vector(sentence: str) -> list[float]:
+    tokens = re.findall(r"[a-z0-9]+", sentence.lower())
+    if not tokens:
+        return [0.0] * 16
+
+    vector = [0.0] * 16
+    for token in tokens:
+        vector[sum(ord(char) for char in token) % len(vector)] += 1.0
+    norm = math.sqrt(sum(value * value for value in vector))
+    return [value / norm for value in vector]
 
 
 def _flatten_facts(findings: list[ResearchFinding]) -> list[_FactCandidate]:

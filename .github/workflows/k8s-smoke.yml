@@ -1,0 +1,130 @@
+name: k8s-smoke
+
+on:
+  pull_request:
+    branches:
+      - dev
+      - main
+  workflow_dispatch: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  k8s-smoke:
+    name: minikube + helm smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout agent-ops
+        uses: actions/checkout@v4
+        with:
+          path: agent-ops
+
+      - name: Checkout rogue-llm (sibling repo)
+        uses: actions/checkout@v4
+        with:
+          repository: nishxnt/rogue-llm
+          path: rogue-llm
+          ref: main
+
+      - name: Set up minikube
+        uses: medyagh/setup-minikube@latest
+        with:
+          cpus: 2
+          memory: 4g
+          kubernetes-version: stable
+
+      - name: Confirm cluster
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Build image inside minikube
+        shell: bash
+        working-directory: agent-ops
+        run: |
+          eval "$(minikube docker-env)"
+          docker build -t agentops-api:dev -f docker/api.Dockerfile .
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.21.0
+
+      - name: Helm install
+        working-directory: agent-ops
+        run: |
+          helm upgrade --install agentops ./charts/agentops \
+            -f charts/agentops/values.dev.yaml \
+            --wait --timeout 3m
+
+      - name: Kubernetes sanity check
+        run: |
+          kubectl get pods
+          kubectl describe deployment agentops
+
+      - name: Run k8s smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          service_url="$(minikube service agentops --url)"
+          echo "Service URL: ${service_url}"
+
+          echo "Healthz:"
+          curl -fsS "${service_url}/healthz"
+          echo
+
+          echo "Readyz:"
+          curl -fsS "${service_url}/readyz"
+          echo
+
+          echo "POST /run:"
+          run_id="$(
+            curl -fsS -X POST "${service_url}/run" \
+              -H 'content-type: application/json' \
+              -d '{"query":"What is FAISS?"}' \
+              | python3 -c "import sys,json; print(json.load(sys.stdin)['run_id'])"
+          )"
+          echo "  run_id=${run_id}"
+
+          final_payload=""
+          for _ in {1..30}; do
+            final_payload="$(curl -fsS "${service_url}/status/${run_id}")"
+            status="$(
+              printf '%s' "${final_payload}" \
+                | python3 -c "import sys,json; print(json.load(sys.stdin)['status'])"
+            )"
+            echo "  status=${status}"
+            if [[ "${status}" == "COMPLETED" || "${status}" == "FAILED" ]]; then
+              break
+            fi
+            sleep 2
+          done
+
+          printf '%s\n' "${final_payload}" | python3 -m json.tool
+          final_status="$(
+            printf '%s' "${final_payload}" \
+              | python3 -c "import sys,json; print(json.load(sys.stdin)['status'])"
+          )"
+          if [[ "${final_status}" != "COMPLETED" ]]; then
+            echo "Expected final status COMPLETED, got ${final_status}"
+            exit 1
+          fi
+
+      - name: Dump diagnostics
+        if: failure()
+        run: |
+          kubectl get pods
+          kubectl describe pods -l app.kubernetes.io/name=agentops
+          kubectl logs -l app.kubernetes.io/name=agentops --tail=200 --all-containers
+          kubectl get events --sort-by=.lastTimestamp | tail -50
+
+      - name: Image size
+        if: always()
+        shell: bash
+        run: |
+          eval "$(minikube docker-env)"
+          docker images agentops-api --format "table {{.Tag}}\t{{.Size}}\t{{.CreatedAt}}"

@@ -2,9 +2,13 @@
 
 AgentOps is a portfolio project for production-oriented multi-agent research workflows. The system will grow into a LangGraph-based research and report generation pipeline with deterministic mock mode, local Ollama mode, cloud mode, budget enforcement, observability, and tamper-evident audit logging.
 
+![CI](https://github.com/nishxnt/agent-ops/actions/workflows/ci.yml/badge.svg)
+![Docker](https://github.com/nishxnt/agent-ops/actions/workflows/docker-smoke.yml/badge.svg)
+![k8s](https://github.com/nishxnt/agent-ops/actions/workflows/k8s-smoke.yml/badge.svg)
+
 ## Status
 
-Phase 4 complete: CLI, async HTTP API, Docker image, raw Kubernetes manifests, and Helm chart are implemented. The observability stack includes a hash-chained audit log, OpenTelemetry spans, and optional OTLP export to Arize Phoenix and LangSmith.
+Phase 5 complete: GitHub Actions CI runs lint + test on every push, builds and smoke-tests the Docker image on every PR, and provisions a minikube cluster to deploy the Helm chart and run one end-to-end mock pipeline query on every PR. Phase 4 work (CLI, async HTTP API, Docker image, raw Kubernetes manifests, Helm chart) is unchanged. The observability stack — hash-chained audit log, OpenTelemetry spans, and optional OTLP export to Arize Phoenix and LangSmith — remains intact.
 
 ## Quick Start
 
@@ -58,6 +62,8 @@ curl -s -X POST http://localhost:8000/run \
 make docker-build
 make docker-smoke    # builds + curls through HTTP
 ```
+
+The Docker image installs the minimum dependency set required for `AGENTOPS_MODE=mock`. Local mode and cloud mode require additional packages (`sentence-transformers`, `torch`, evaluation libraries) installed outside the container; the Dockerfile is intentionally scoped to the mock-mode API surface used by PR validation and the k8s smoke.
 
 ### Kubernetes (raw manifests, for learning)
 
