@@ -1,9 +1,13 @@
+import importlib
 import shutil
+import sys
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 from pydantic import ValidationError
 
+import agentops.agents.critic as critic_module
 from agentops.agents.critic import CriticAgent
 from agentops.agents.researcher import ResearchFinding, SourceCitation
 from agentops.llm.client import MockLLMClient
@@ -21,6 +25,38 @@ class FakeEmbedder:
         self.call_count += 1
         self.sentences = sentences
         return self.vectors[: len(sentences)]
+
+
+def test_importing_critic_in_mock_mode_does_not_import_sentence_transformers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("AGENTOPS_MODE", "mock")
+    sys.modules.pop("sentence_transformers", None)
+
+    importlib.reload(critic_module)
+
+    assert "sentence_transformers" not in sys.modules
+
+
+def test_default_embedder_lazily_imports_sentence_transformers_in_non_mock_mode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeSentenceTransformer:
+        def __init__(self, model_name: str) -> None:
+            self.model_name = model_name
+
+        def encode(self, sentences: list[str]) -> list[list[float]]:
+            return [[0.0] for _ in sentences]
+
+    fake_module = ModuleType("sentence_transformers")
+    fake_module.SentenceTransformer = FakeSentenceTransformer  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "sentence_transformers", fake_module)
+    monkeypatch.setenv("AGENTOPS_MODE", "local")
+
+    embedder = critic_module._default_embedder()
+
+    assert isinstance(embedder, FakeSentenceTransformer)
+    assert embedder.model_name == "all-MiniLM-L6-v2"
 
 
 def critic_client(tmp_path: Path, fixture_name: str = "default.json") -> MockLLMClient:

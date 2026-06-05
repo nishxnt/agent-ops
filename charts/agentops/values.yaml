@@ -21,6 +21,8 @@ resources:
     cpu: 1000m
 
 audit:
+  dbPath: "/var/lib/agentops/audit.sqlite"
+  mountPath: "/var/lib/agentops"
   persistence:
     enabled: true
     size: 5Gi
@@ -29,6 +31,7 @@ audit:
 
 config:
   agentopsMode: "mock"
+  searchCacheDir: "/home/agentops/.agentops-cache/search"
   budgetTokenLimit: "100000"
   qualityGateMaxRevisions: "2"
   maxRecoveryAttempts: "2"

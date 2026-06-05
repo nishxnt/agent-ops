@@ -6,6 +6,8 @@ metadata:
     {{- include "agentops.labels" . | nindent 4 }}
 data:
   AGENTOPS_MODE: {{ .Values.config.agentopsMode | quote }}
+  AGENTOPS_SEARCH_CACHE_DIR: {{ .Values.config.searchCacheDir | quote }}
+  AUDIT_DB_PATH: {{ .Values.audit.dbPath | quote }}
   BUDGET_TOKEN_LIMIT: {{ .Values.config.budgetTokenLimit | quote }}
   QUALITY_GATE_MAX_REVISIONS: {{ .Values.config.qualityGateMaxRevisions | quote }}
   MAX_RECOVERY_ATTEMPTS: {{ .Values.config.maxRecoveryAttempts | quote }}

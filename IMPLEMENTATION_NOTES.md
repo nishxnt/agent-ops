@@ -115,3 +115,64 @@ This is intentionally manual; automating it would require either mocking LangSmi
 - **One smoke assertion path.** CI runs `uv run pytest tests/integration/test_docker_smoke.py -v`, the same assertion logic used by the local Docker smoke path. The `built_image` fixture now reuses `agentops-api:pytest` when the workflow pre-builds it, and only builds from scratch when the tag is absent locally.
 - **Mock API image boundary.** The Docker image installs the minimal dependency set needed by the mock API path and excludes heavyweight non-mock evaluation/search packages (`sentence-transformers`, `torch`, RogueLLM metrics, Ragas, Deepeval, Phoenix, FAISS). Mock mode uses deterministic local stubs and copied test fixtures, so the container smoke validates the production API surface without turning PR validation into a multi-GB ML image build.
 - **Image size diagnostics.** The final image-size step uses `if: always()` so failed smoke runs still report the produced image size, which helps distinguish runtime failures from unexpectedly bloated builds.
+
+## Phase 5 M2.5 — Reconciliation audit
+
+### Phase 5 M2.5 — A. Env var consistency
+
+- **A.1 Current state.** `docker/api.Dockerfile` sets `AGENTOPS_SEARCH_CACHE_DIR=/home/agentops/.agentops-cache/search` and `AUDIT_DB_PATH=/home/agentops/audit.sqlite` for the standalone mock-mode image. **Decision.** Keep those Dockerfile defaults because `/home/agentops` is owned by uid 1000 in the image. **Action taken.** No Dockerfile ENV change.
+- **A.2 Current state.** `src/agentops/config.py` has `search_cache_dir`, but its local-development default is `.agentops-cache/search`, not the container default. Runtime code reads `AGENTOPS_SEARCH_CACHE_DIR` through `Settings`, so the Dockerfile and k8s/Helm env vars override the local default in containerized runs. **Decision.** Keep the local default for non-container developer workflows. **Action taken.** No config change.
+- **A.3 Current state.** `k8s/configmap.yaml` did not set either path, while `k8s/api-gateway/deployment.yaml` set `AUDIT_DB_PATH=/var/lib/agentops/audit.sqlite` and mounted the PVC at `/var/lib/agentops`. **Decision.** Make both runtime paths explicit in the raw ConfigMap; keep the deployment audit env aligned with the PVC. **Action taken.** Added `AGENTOPS_SEARCH_CACHE_DIR=/home/agentops/.agentops-cache/search` and `AUDIT_DB_PATH=/var/lib/agentops/audit.sqlite` to the raw ConfigMap.
+- **A.4 Current state.** `charts/agentops/templates/configmap.yaml` did not render either path, while the chart deployment hard-coded `AUDIT_DB_PATH=/var/lib/agentops/audit.sqlite`. **Decision.** Pin both paths through values so rendered manifests expose the full runtime contract. **Action taken.** Added `config.searchCacheDir`, `audit.dbPath`, ConfigMap rendering, and deployment consumption of `audit.dbPath`.
+
+### Phase 5 M2.5 — B. Audit DB path and PVC mount
+
+- **B.1 Current state.** Phase 4 raw k8s mounted the audit PVC at `/var/lib/agentops` and set `AUDIT_DB_PATH=/var/lib/agentops/audit.sqlite`. It did not use `/data` or `/home/agentops` in k8s. **Decision.** Keep `/var/lib/agentops` as the k8s/Helm persistent audit location. **Action taken.** No raw mount path change.
+- **B.2 Current state.** The Dockerfile standalone default `/home/agentops/audit.sqlite` does not match the k8s/Helm PVC mount path. In cluster, the env override points to `/var/lib/agentops/audit.sqlite`, which does match the mount. **Decision.** Treat `/home/agentops/audit.sqlite` as standalone-container default and `/var/lib/agentops/audit.sqlite` as deployment default. **Action taken.** Made the k8s/Helm deployment default explicit in raw ConfigMap and Helm values.
+- **B.3 Current state.** Without the deployment override, a Pod would write outside the PVC. The current raw and Helm deployments already override the audit path, but Helm hid the value in a template literal. **Decision.** Keep the PVC mount path and audit DB path aligned at `/var/lib/agentops`. **Action taken.** Added `audit.dbPath` and `audit.mountPath` values and used them in the Helm deployment.
+- **B.4 Current state.** Raw and Helm Pod specs set `runAsUser: 1000`, `runAsGroup: 1000`, and `fsGroup: 1000`; the Dockerfile runtime user is uid/gid 1000. **Decision.** This is the correct storage permission baseline for PVC-backed runs. **Action taken.** No securityContext change.
+
+### Phase 5 M2.5 — C. Lockfile vs direct-pin Dockerfile
+
+- **C.1 Current state.** The Dockerfile uses `uv pip install` with a hand-curated dependency list, so production image versions are not governed by `uv.lock`. **Decision.** Document this as an intentional mock-mode image boundary. **Action taken.** Added Dockerfile and implementation-note rationale.
+- **C.2 Current state.** Moving the list into a PEP 735 dependency group would reconnect the image to `uv.lock`, but it would expand this milestone beyond reconciliation. **Decision.** Keep the direct-pin Dockerfile for v1 portfolio scope. **Action taken.** No install-command change.
+- **C.3 Current state.** The direct-pin list excludes `sentence-transformers`, `torch`, RogueLLM eval metrics, Ragas, DeepEval, Arize Phoenix, and FAISS. **Decision.** Dockerfile is the source of truth for the production mock API image; the lockfile governs development. Changes to `pyproject.toml` main dependencies must review the Dockerfile list in the same PR. **Action taken.** Documented this guarantee here and in the Dockerfile comment.
+- **C.4 Current state.** The Dockerfile had no header explaining why it does not run `uv sync --frozen`. **Decision.** Add a concise comment header only. **Action taken.** Added the 4-6 line note above the `uv pip install` block without changing the install command.
+
+### Phase 5 M2.5 — Image dependency strategy
+
+The Dockerfile is the source of truth for the production image's dependency set. The lockfile governs the dev environment. This is deliberate for v1: the image validates and serves the mock-mode API surface without installing heavyweight non-mock packages.
+
+The hand-curated Dockerfile list excludes `sentence-transformers`, `torch`, RogueLLM evaluation metrics, Ragas, DeepEval, Arize Phoenix, and FAISS by design. When `pyproject.toml` main dependencies change, the Dockerfile install list must be reviewed and updated in the same PR.
+
+### Phase 5 M2.5 — D. Critic embedder lazy import
+
+- **D.1 Current state.** `src/agentops/agents/critic.py` imports `sentence_transformers` inside `_default_embedder()` only after checking `get_settings().mode != AgentOpsMode.MOCK`; it is not imported at module top level. **Decision.** Keep the implementation. **Action taken.** No critic source change.
+- **D.2 Current state.** Existing critic tests did not assert that mock-mode import avoids `sentence_transformers` or exercise the lazy branch. **Decision.** Add focused unit coverage. **Action taken.** Added tests that reload the critic module in mock mode without importing `sentence_transformers` and exercise `_default_embedder()` in non-mock mode with a fake `sentence_transformers` module.
+- **D.3 Current state.** The lazy-embedder pattern was not documented. **Decision.** Document why mock-mode containers need lazy ML imports. **Action taken.** Added the subsection below.
+
+### Phase 5 M2.5 — Lazy ML imports for mock-mode container
+
+Mock mode is a first-class deployment mode, so modules imported by the API startup path must not require heavyweight local/cloud-only ML packages. `CriticAgent` keeps its default embedder behind `_default_embedder()`: mock mode returns a deterministic in-repo embedder, while non-mock mode lazily imports `sentence_transformers` only when that path is selected.
+
+### Phase 5 M2.5 — E. Test fixtures in production image
+
+- **E.1 Current state.** `MockLLMClient` resolves LLM fixtures from `Path(__file__).resolve().parents[3] / "tests" / "fixtures"`, and mock search resolves search fixtures the same way. In the container, `PYTHONPATH=/app/src`, so this resolves to `/app/tests/fixtures`. **Decision.** Keep copying fixtures into `/app/tests/fixtures`. **Action taken.** No Dockerfile COPY change.
+- **E.2 Current state.** `.dockerignore` does not exclude `tests/fixtures`; it excludes cache files, SQLite files, and deployment/source artifact directories. **Decision.** Fixtures remain part of the build context. **Action taken.** No `.dockerignore` change.
+- **E.3 Current state.** The Dockerfile copies only `tests/fixtures/`, not test modules. **Decision.** Mock-mode fixtures are part of the production image surface because mock mode is a first-class deployment mode for this project (used in PR validation, k8s smoke testing, and portfolio demos). Tests under `tests/unit/` and `tests/integration/` are NOT copied; only the fixture data. **Action taken.** Documented this policy.
+
+### Phase 5 M2.5 — F. README and deployment docs
+
+- **F.1 Current state.** README status said only "Phase 4 complete." **Decision.** Clarify that Phase 5 is in progress and k8s smoke CI is next. **Action taken.** Updated the status sentence.
+- **F.2 Current state.** Quick Start still uses `make run-mock`. **Decision.** Keep it and validate it after the lazy-import change. **Action taken.** Validation gate runs `AGENTOPS_MODE=mock uv run agentops-run "What is FAISS?"`.
+- **F.3 Current state.** README Docker docs did not state the mock-only image scope. **Decision.** Make the image boundary explicit. **Action taken.** Added Docker section text explaining the minimal mock-mode dependency set.
+
+### Phase 5 M2.5 — G. Helm chart values
+
+- **G.1 Current state.** `values.yaml` did not expose audit DB path or search cache dir, while deployment/configmap templates used hard-coded or hidden defaults. **Decision.** Pin path strings in values to avoid hidden defaults before M3. **Action taken.** Added `audit.dbPath=/var/lib/agentops/audit.sqlite`, `audit.mountPath=/var/lib/agentops`, and `config.searchCacheDir=/home/agentops/.agentops-cache/search`.
+- **G.2 Current state.** The Helm deployment mounted the audit PVC at `/var/lib/agentops` and set the audit DB path under that mount. **Decision.** Preserve that relationship while rendering it from values. **Action taken.** Updated the Helm deployment template and will validate with `helm template ... -f values.dev.yaml`.
+
+### Phase 5 M2.5 — H. Makefile targets
+
+- **H.1 Current state.** `make k8s-up` builds `agentops-api:dev`; `k8s/api-gateway/deployment.yaml` references `agentops-api:dev` with `imagePullPolicy: Never`. **Decision.** The raw manifest image tag matches the Makefile target. **Action taken.** No Makefile or raw image change.
+- **H.2 Current state.** `make helm-install` builds `agentops-api:dev`; `charts/agentops/values.dev.yaml` sets `image.tag: "dev"` with repository `agentops-api`. **Decision.** The Helm dev image tag matches the Makefile target. **Action taken.** No Makefile or dev values image change.

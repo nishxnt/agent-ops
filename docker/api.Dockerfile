@@ -15,6 +15,12 @@ WORKDIR /app
 COPY pyproject.toml uv.lock README.md ./
 COPY src/ ./src/
 
+# NOTE: Mock-mode API image. Hand-curated minimal dependency set,
+# NOT a full `uv sync --frozen` install. Heavyweight non-mock packages
+# (sentence-transformers, torch, RogueLLM eval metrics, Phoenix, FAISS)
+# are deliberately excluded. When pyproject.toml main dependencies change,
+# this list must be reviewed in the same PR. See IMPLEMENTATION_NOTES.md
+# "Phase 5 M2.5 — Image dependency strategy" for full rationale.
 RUN uv venv /app/.venv \
     && uv pip install --python /app/.venv/bin/python \
         "diskcache>=5.6" \
